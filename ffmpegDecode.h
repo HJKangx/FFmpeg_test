@@ -46,6 +46,5 @@ private:
     int m_nVideoStreamIndex;
     int m_nAudioStreamIndex;
 
-    
     struct SwsContext* pImgConvertCtx;
 };

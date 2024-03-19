@@ -12,8 +12,8 @@ FFmpegDecoder::FFmpegDecoder()
 
     pImgConvertCtx = nullptr;
 
-    m_nVideoStreamIndex = 0;
-    m_nAudioStreamIndex = 0;
+    m_nVideoStreamIndex = -1;
+    m_nAudioStreamIndex = -1;
 }
 
 FFmpegDecoder::~FFmpegDecoder()
@@ -26,6 +26,10 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
     float fFps = 0.f;
     int nInputDuration = 0;
     int nTotalFrame = 0;
+    int nInputWidth = 0;
+    int nInputHeight = 0;
+    std::string stdVideoCodec = "None";
+    std::string stdAudioCodec = "None";
 
     std::cout << "OpenFile: " << strInputUrl << std::endl;
 
@@ -41,23 +45,46 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
 		return false;
 	}
 
-    av_dump_format(m_pFormatCtx, 0, 0, 0);
-
+    // av_dump_format(m_pFormatCtx, 0, 0, 0);
     for(int i = 0; i < m_pFormatCtx->nb_streams; i++)
     {
         if(m_pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
         {
-            AVRational avrFps = m_pFormatCtx->streams[i]->avg_frame_rate;
+            m_nVideoStreamIndex = i;
+            std::cout << "Video stream idx : "<< m_nVideoStreamIndex << std::endl;
+
+            AVRational avrFps = m_pFormatCtx->streams[m_nVideoStreamIndex]->avg_frame_rate;
             fFps = static_cast<float>(avrFps.num) / static_cast<float>(avrFps.den);
+
+			m_pVideoCodec = avcodec_find_decoder(m_pFormatCtx->streams[m_nVideoStreamIndex]->codecpar->codec_id);
+            nInputWidth = m_pFormatCtx->streams[m_nVideoStreamIndex]->codecpar->width;
+            nInputHeight = m_pFormatCtx->streams[m_nVideoStreamIndex]->codecpar->height;
+
+            nInputDuration = m_pFormatCtx->duration / AV_TIME_BASE;
+            nTotalFrame = nInputDuration * fFps;
+            stdVideoCodec = m_pVideoCodec->name;
+        }
+        else if(m_pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
+        {
+            m_nAudioStreamIndex = i;
+            std::cout << "Audio stream idx: "<< m_nAudioStreamIndex << std::endl;
+
+			m_pAudioCodec = avcodec_find_decoder(m_pFormatCtx->streams[m_nAudioStreamIndex]->codecpar->codec_id);
+            stdAudioCodec = m_pAudioCodec->name;
         }
     }
 
-    nInputDuration = m_pFormatCtx->duration / AV_TIME_BASE;
-    nTotalFrame = nInputDuration * fFps;
+    if (m_nVideoStreamIndex == -1)
+        std::cout << "No Viedo stream in " << strInputUrl << std::endl;
+    else if (m_nAudioStreamIndex == -1)
+        std::cout<< "No Audio stream in " << strInputUrl << std::endl;
 
-    std::cout << "Video Duration: " << nInputDuration << " seconds, " << fFps << "fps, " 
-               << nTotalFrame << " frame" << std::endl;
+    std::cout << "Video Duration - " << nInputDuration << " seconds, " << fFps << "fps, " 
+                << nTotalFrame << " frame" << std::endl;
 
+    std::cout << "Video Info - " << "Width: " << nInputWidth << ", Height: " << nInputHeight << ", video codec: " << stdVideoCodec 
+                << ", audio codec: " << stdAudioCodec << std::endl;
+                
     bool bCheckVideo = OpenVideo();
 
     return 0;
@@ -67,8 +94,8 @@ int FFmpegDecoder::OpenVideo()
 {
     int nRet = 0;
     bool bRes = false;
-    int nWidth;
-    int nHeight;
+    int nWidth = 0;
+    int nHeight = 0;
 
     if (m_pFormatCtx)
     {
@@ -78,7 +105,6 @@ int FFmpegDecoder::OpenVideo()
         {
             m_nVideoStreamIndex = i;
 
-            // pVideoCodecCtx = pFormatCtx->streams[i]->codec;
 			m_pVideoCodec = avcodec_find_decoder(m_pFormatCtx->streams[i]->codecpar->codec_id);
             m_pVideoCodecCtx = avcodec_alloc_context3(m_pVideoCodec);
             avcodec_parameters_to_context(m_pVideoCodecCtx, m_pFormatCtx->streams[i]->codecpar);
