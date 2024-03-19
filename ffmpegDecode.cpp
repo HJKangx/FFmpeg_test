@@ -1,27 +1,45 @@
 #include "ffmpegDecode.h"
 extern "C"
 
+FFmpegDecoder::FFmpegDecoder()
+{
+    m_pFormatCtx = nullptr;
+    m_pVideoCodecCtx = nullptr;
+    m_pAudioCodecCtx = nullptr;
+
+    m_pVideoCodec = nullptr;
+    m_pAudioCodec = nullptr;
+
+    pImgConvertCtx = nullptr;
+
+    m_nVideoStreamIndex = 0;
+    m_nAudioStreamIndex = 0;
+}
+
+FFmpegDecoder::~FFmpegDecoder()
+{
+    std::cout << ("End FFmpegDecoder.") << std::endl;
+}
+
 int FFmpegDecoder::OpenFile(const std::string& inputfile)
 {
 
-    std::cout << inputfile << std::endl;
+    std::cout << "file" << inputfile << std::endl;
 
-    // pVideoCodec = avcodec_find_decoder(AV_CODEC_ID_H264);
-
-    if (avformat_open_input(&pFormatCtx, inputfile.c_str(), NULL, NULL) < 0)
+    if (avformat_open_input(&m_pFormatCtx, inputfile.c_str(), nullptr, nullptr) < 0)
 	{
         std::cerr << "no avformat_open_input" << std::endl;
 		return false;
 	}
 
-    if (avformat_find_stream_info(pFormatCtx, NULL) < 0)
+    if (avformat_find_stream_info(m_pFormatCtx, nullptr) < 0)
 	{
         std::cerr << "no avformat_find_stream_info" << std::endl;
 		return false;
 	}
 
-    std::cout << "Duration: " << pFormatCtx->duration / AV_TIME_BASE << " seconds" << std::endl;
-    std::cout << "Start Time: " << pFormatCtx->start_time << " fps: " << pFormatCtx->fps_probe_size << std::endl;
+    std::cout << "Duration: " << m_pFormatCtx->duration / AV_TIME_BASE << " seconds" << std::endl;
+    std::cout << "Start Time: " << m_pFormatCtx->start_time << " fps: " << m_pFormatCtx->fps_probe_size << std::endl;
 
     bool bCheckVideo = OpenVideo();
 
@@ -35,24 +53,24 @@ int FFmpegDecoder::OpenVideo()
     int nWidth;
     int nHeight;
 
-    if (pFormatCtx)
+    if (m_pFormatCtx)
     {
-        nVideoStreamIndex = -1;
+        m_nVideoStreamIndex = -1;
 
-        for (int i = 0; i < pFormatCtx->nb_streams; i++)
+        for (int i = 0; i < m_pFormatCtx->nb_streams; i++)
         {
-            nVideoStreamIndex = i;
+            m_nVideoStreamIndex = i;
 
             // pVideoCodecCtx = pFormatCtx->streams[i]->codec;
-			pVideoCodec = avcodec_find_decoder(pFormatCtx->streams[i]->codecpar->codec_id);
-            pVideoCodecCtx = avcodec_alloc_context3(pVideoCodec);
-            avcodec_parameters_to_context(pVideoCodecCtx, pFormatCtx->streams[i]->codecpar);
+			m_pVideoCodec = avcodec_find_decoder(m_pFormatCtx->streams[i]->codecpar->codec_id);
+            m_pVideoCodecCtx = avcodec_alloc_context3(m_pVideoCodec);
+            avcodec_parameters_to_context(m_pVideoCodecCtx, m_pFormatCtx->streams[i]->codecpar);
 
-            if (pVideoCodec)
+            if (m_pVideoCodec)
             {
-                bRes = !(avcodec_open2)(pVideoCodecCtx, pVideoCodec, NULL);
-                nWidth = pVideoCodecCtx->width;
-                nHeight = pVideoCodecCtx->height;
+                bRes = !(avcodec_open2)(m_pVideoCodecCtx, m_pVideoCodec, nullptr);
+                nWidth = m_pVideoCodecCtx->width;
+                nHeight = m_pVideoCodecCtx->height;
             }
             break;
         }
@@ -66,13 +84,11 @@ int FFmpegDecoder::OpenVideo()
     }
     else
     {
-        // std::cout << "width: "<< pVideoCodecCtx->width  << " height: " << pVideoCodecCtx->height  << " fps: " << pVideoCodecCtx->pix_fmt << std::endl;
-
         pImgConvertCtx = sws_getContext(
             nWidth, nHeight,
-            pVideoCodecCtx->pix_fmt,
+            m_pVideoCodecCtx->pix_fmt,
             nWidth, nHeight,
-            AV_PIX_FMT_BGR24, SWS_BICUBIC, NULL, NULL, NULL);
+            AV_PIX_FMT_BGR24, SWS_BICUBIC, nullptr, nullptr, nullptr);
     }
 
     return nRet;
@@ -85,36 +101,29 @@ int FFmpegDecoder::DecodeVideo()
     int isDecodeComplite = 0;
     
 
-    if (nVideoStreamIndex != -1)
+    if (m_nVideoStreamIndex != -1)
     {
         AVFrame *pFrameYUV = av_frame_alloc();
         AVPacket packet;
 
 
-        while (av_read_frame(pFormatCtx, &packet) >= 0)
+        while (av_read_frame(m_pFormatCtx, &packet) >= 0)
         {
             nCnt+=1;
             std::cout << "av_read_frame" << nCnt << std::endl;
             int64_t pts = 0;
             pts = (packet.dts != AV_NOPTS_VALUE) ? packet.dts : 0;
 
-            if(packet.stream_index == nVideoStreamIndex)
+            if(packet.stream_index == m_nVideoStreamIndex)
             {
 
-                if (pVideoCodecCtx)
+                if (m_pVideoCodecCtx)
                 {
                     int got_picture_ptr = 0;
-                    auto data1 = avcodec_send_packet(pVideoCodecCtx, &packet);
-                    isDecodeComplite = avcodec_receive_frame(pVideoCodecCtx, pFrameYUV);
-
-
-                    // int videoFrameBytes = avcodec_decode_video2(pVideoCodecCtx, pVideoYuv, &got_picture_ptr, &packet);
-                    // nRet = (videoFrameBytes  0);
-
-                    // std::cout << "videoFrameBytes" << videoFrameBytes << std::endl;
-                    // avcodec_receive_frame(pVideoCodecCtx, pVideoYuv);
+                    auto data1 = avcodec_send_packet(m_pVideoCodecCtx, &packet);
+                    isDecodeComplite = avcodec_receive_frame(m_pVideoCodecCtx, pFrameYUV);
+                   
                 }
-
 
                 if (!isDecodeComplite)
 					{
@@ -158,14 +167,11 @@ int FFmpegDecoder::BMPSave(AVFrame* pFrameRGB, int width, int height)
 
     std::cout << "start file" << std::endl;
 
-    // FILE* file = fopen("output.txt", "rb");
     FILE* file;
     const char* filename = "FFmpeg_test.bmp";
     file = fopen(filename, "wb");
     int y;
 
-    // snprintf(filename, sizeof(filename), "frame%d.bmp", 0);
-    
     if (file) 
     {
         unsigned char bmpfileheader[14] = {'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0};
