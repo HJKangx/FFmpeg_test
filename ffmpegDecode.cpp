@@ -23,11 +23,13 @@ FFmpegDecoder::~FFmpegDecoder()
 
 int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
 {
-    float fFps = 0.f;
+    int nRet = 0;
     int nInputDuration = 0;
     int nTotalFrame = 0;
     int nInputWidth = 0;
     int nInputHeight = 0;
+    float fFps = 0.f;
+
     std::string stdVideoCodec = "None";
     std::string stdAudioCodec = "None";
 
@@ -74,10 +76,23 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
         }
     }
 
-    if (m_nVideoStreamIndex == -1)
-        std::cout << "No Viedo stream in " << strInputUrl << std::endl;
+    if (m_nVideoStreamIndex == -1 && m_nAudioStreamIndex == -1)
+    {
+        std::cerr << "No Viedo and Audio stream in " << strInputUrl << std::endl;
+        nRet = static_cast<int>(FD_RESULT::ERROR_NO_AUDIO_AND_VIEDO_STREAM);
+        
+        return nRet;
+    }
+    else if (m_nVideoStreamIndex == -1)
+    {
+        std::cerr << "No Viedo stream in " << strInputUrl << std::endl;
+        nRet = static_cast<int>(FD_RESULT::WARNING_NO_VIEDO_STREAM);
+    }
     else if (m_nAudioStreamIndex == -1)
-        std::cout<< "No Audio stream in " << strInputUrl << std::endl;
+    {
+        std::cerr << "No Audio stream in " << strInputUrl << std::endl;
+        nRet = static_cast<int>(FD_RESULT::WARNING_NO_AUDIO_STREAM);
+    }
 
     std::cout << "Video Duration - " << nInputDuration << " seconds, " << fFps << "fps, " 
                 << nTotalFrame << " frame" << std::endl;
@@ -87,51 +102,36 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
                 
     bool bCheckVideo = OpenVideo();
 
-    return 0;
+    return nRet;
 }
 
 int FFmpegDecoder::OpenVideo()
 {
     int nRet = 0;
     bool bRes = false;
-    int nWidth = 0;
-    int nHeight = 0;
-
-    if (m_pFormatCtx)
+   
+    if (m_pVideoCodec != nullptr && m_pFormatCtx != nullptr)
     {
-        m_nVideoStreamIndex = -1;
+        // m_pVideoCodec = avcodec_find_decoder(m_pFormatCtx->streams[i]->codecpar->codec_id);
+        m_pVideoCodecCtx = avcodec_alloc_context3(m_pVideoCodec);
+        nRet = avcodec_parameters_to_context(m_pVideoCodecCtx, m_pFormatCtx->streams[m_nVideoStreamIndex]->codecpar);
 
-        for (int i = 0; i < m_pFormatCtx->nb_streams; i++)
+        if (m_pVideoCodecCtx != nullptr && m_pVideoCodecCtx->codec_id != 0 && nRet >= 0)
         {
-            m_nVideoStreamIndex = i;
-
-			m_pVideoCodec = avcodec_find_decoder(m_pFormatCtx->streams[i]->codecpar->codec_id);
-            m_pVideoCodecCtx = avcodec_alloc_context3(m_pVideoCodec);
-            avcodec_parameters_to_context(m_pVideoCodecCtx, m_pFormatCtx->streams[i]->codecpar);
-
-            if (m_pVideoCodec)
+            nRet = (avcodec_open2)(m_pVideoCodecCtx, m_pVideoCodec, nullptr);
+            if (nRet != 0)
             {
-                bRes = !(avcodec_open2)(m_pVideoCodecCtx, m_pVideoCodec, nullptr);
-                nWidth = m_pVideoCodecCtx->width;
-                nHeight = m_pVideoCodecCtx->height;
-            }
-            break;
+                nRet = -1;
+                std::cout << "Fail avcodec_open2" << std::endl;        
+                return nRet;
+            } 
         }
-    }
-
-    if (!bRes)
-    {
-        nRet = -1;
-        std::cout << "no avcodec_open2" << std::endl;        
-        return nRet;
-    }
-    else
-    {
-        pImgConvertCtx = sws_getContext(
-            nWidth, nHeight,
-            m_pVideoCodecCtx->pix_fmt,
-            nWidth, nHeight,
-            AV_PIX_FMT_BGR24, SWS_BICUBIC, nullptr, nullptr, nullptr);
+        else
+        {
+            nRet = -1;
+            std::cout << "Fail Allocate an AVCodecContext or Fail Fill the Codec Context" << std::endl;    
+            return nRet;
+        }
     }
 
     return nRet;

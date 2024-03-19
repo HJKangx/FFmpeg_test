@@ -3,6 +3,7 @@
 #include <string>
 #include <chrono>
 #include <thread>
+#include "FFMPEG_DEFINE.h"
 
 extern "C"
 {
@@ -47,4 +48,6 @@ private:
     int m_nAudioStreamIndex;
 
     struct SwsContext* pImgConvertCtx;
+
+    
 };
