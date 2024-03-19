@@ -35,13 +35,13 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
 
     if (avformat_open_input(&m_pFormatCtx, strInputUrl.c_str(), nullptr, nullptr) < 0)
 	{
-        std::cerr << "no avformat_open_input" << std::endl;
+        std::cerr << "Can't Open Stream & Read Header in " << strInputUrl << std::endl;
 		return false;
 	}
 
     if (avformat_find_stream_info(m_pFormatCtx, nullptr) < 0)
 	{
-        std::cerr << "no avformat_find_stream_info" << std::endl;
+        std::cerr << "Can't Read Packets of " << strInputUrl << std::endl;
 		return false;
 	}
 
