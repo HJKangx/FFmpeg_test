@@ -21,12 +21,15 @@ FFmpegDecoder::~FFmpegDecoder()
     std::cout << ("End FFmpegDecoder.") << std::endl;
 }
 
-int FFmpegDecoder::OpenFile(const std::string& inputfile)
+int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
 {
+    float fFps = 0.f;
+    int nInputDuration = 0;
+    int nTotalFrame = 0;
 
-    std::cout << "file" << inputfile << std::endl;
+    std::cout << "OpenFile: " << strInputUrl << std::endl;
 
-    if (avformat_open_input(&m_pFormatCtx, inputfile.c_str(), nullptr, nullptr) < 0)
+    if (avformat_open_input(&m_pFormatCtx, strInputUrl.c_str(), nullptr, nullptr) < 0)
 	{
         std::cerr << "no avformat_open_input" << std::endl;
 		return false;
@@ -38,8 +41,23 @@ int FFmpegDecoder::OpenFile(const std::string& inputfile)
 		return false;
 	}
 
-    std::cout << "Duration: " << m_pFormatCtx->duration / AV_TIME_BASE << " seconds" << std::endl;
-    std::cout << "Start Time: " << m_pFormatCtx->start_time << " fps: " << m_pFormatCtx->fps_probe_size << std::endl;
+    av_dump_format(m_pFormatCtx, 0, 0, 0);
+
+    for(int i=0; i < m_pFormatCtx->nb_streams; ++i)
+    {
+        std::cout << i << std::endl;
+        if(m_pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
+        {
+            AVRational avrFps = m_pFormatCtx->streams[i]->avg_frame_rate;
+            fFps = static_cast<float>(avrFps.num) / static_cast<float>(avrFps.den);
+        }
+    }
+    
+    nInputDuration = m_pFormatCtx->duration / AV_TIME_BASE;
+    nTotalFrame = nInputDuration * fFps;
+
+    std::cout << "Duration: " << nInputDuration << "seconds, " << "fps: " << fFps<< std::endl;
+    std::cout << "TotalFrame: " << nTotalFrame << std::endl;
 
     bool bCheckVideo = OpenVideo();
 
