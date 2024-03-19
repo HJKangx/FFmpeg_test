@@ -140,66 +140,62 @@ int FFmpegDecoder::OpenVideo()
 int FFmpegDecoder::DecodeVideo()
 {
     int nRet = 0;
-    int nCnt  = 0;
-    int isDecodeComplite = 0;
+    int nFrameNumber  = 0;
     
 
-    if (m_nVideoStreamIndex != -1)
+    AVFrame *pFrameYUV = av_frame_alloc();
+    AVPacket *pPacket = av_packet_alloc();
+
+    while (av_read_frame(m_pFormatCtx, pPacket) >= 0)
     {
-        AVFrame *pFrameYUV = av_frame_alloc();
-        AVPacket packet;
-
-
-        while (av_read_frame(m_pFormatCtx, &packet) >= 0)
+        if(pPacket->stream_index == m_nVideoStreamIndex)
         {
-            nCnt+=1;
-            std::cout << "av_read_frame" << nCnt << std::endl;
-            int64_t pts = 0;
-            pts = (packet.dts != AV_NOPTS_VALUE) ? packet.dts : 0;
+            nFrameNumber+=1;
+            std::cout << "Read FrameNumber: " << nFrameNumber << std::endl;
 
-            if(packet.stream_index == m_nVideoStreamIndex)
+            if (m_pVideoCodecCtx != nullptr)
             {
-
-                if (m_pVideoCodecCtx)
+                nRet = avcodec_send_packet(m_pVideoCodecCtx, pPacket);
+                
+                if (nRet == 0)
+                    nRet = avcodec_receive_frame(m_pVideoCodecCtx, pFrameYUV);
+                else
                 {
-                    int got_picture_ptr = 0;
-                    auto data1 = avcodec_send_packet(m_pVideoCodecCtx, &packet);
-                    isDecodeComplite = avcodec_receive_frame(m_pVideoCodecCtx, pFrameYUV);
-                   
+                    nRet = -1;
+                    return nRet;
                 }
-
-                if (!isDecodeComplite)
-					{
-                        struct SwsContext *sws_ctx = nullptr;
-                        int srcW = pFrameYUV->width; 
-                        int srcH = pFrameYUV->height;
-                        int dstW = pFrameYUV->width;
-                        int dstH = pFrameYUV->height; 
-
-                        sws_ctx = sws_getContext(srcW, srcH, AV_PIX_FMT_YUV420P,
-                         dstW, dstH, AV_PIX_FMT_BGR24,
-                         SWS_BILINEAR, nullptr, nullptr, nullptr);
-
-                        AVFrame *frameRGB = av_frame_alloc();
-                        frameRGB->format = AV_PIX_FMT_BGR24;
-                        frameRGB->width  = pFrameYUV->width;
-                        frameRGB->height = pFrameYUV->height;
-
-                        uint8_t* out_buffer = (uint8_t*)av_malloc(av_image_get_buffer_size(AV_PIX_FMT_RGB24, frameRGB->width, frameRGB->height, 1));
-                        av_image_fill_arrays(frameRGB->data, frameRGB->linesize, out_buffer, AV_PIX_FMT_RGB24, frameRGB->width, frameRGB->height, 1);
-
-                        sws_scale(sws_ctx, (const uint8_t* const*)pFrameYUV->data, pFrameYUV->linesize,
-                    0, pFrameYUV->height, frameRGB->data, frameRGB->linesize);
-
-
-
-                        BMPSave(frameRGB, pFrameYUV->width, pFrameYUV->height);
-					}
+                    
             }
 
+            if (nRet == 0)
+                {
+                    struct SwsContext *sws_ctx = nullptr;
+                    int srcW = pFrameYUV->width; 
+                    int srcH = pFrameYUV->height;
+                    int dstW = pFrameYUV->width;
+                    int dstH = pFrameYUV->height; 
+
+                    sws_ctx = sws_getContext(srcW, srcH, AV_PIX_FMT_YUV420P,
+                        dstW, dstH, AV_PIX_FMT_BGR24,
+                        SWS_BILINEAR, nullptr, nullptr, nullptr);
+
+                    AVFrame *frameRGB = av_frame_alloc();
+                    frameRGB->format = AV_PIX_FMT_BGR24;
+                    frameRGB->width  = pFrameYUV->width;
+                    frameRGB->height = pFrameYUV->height;
+
+                    uint8_t* out_buffer = (uint8_t*)av_malloc(av_image_get_buffer_size(AV_PIX_FMT_RGB24, frameRGB->width, frameRGB->height, 1));
+                    av_image_fill_arrays(frameRGB->data, frameRGB->linesize, out_buffer, AV_PIX_FMT_RGB24, frameRGB->width, frameRGB->height, 1);
+
+                    sws_scale(sws_ctx, (const uint8_t* const*)pFrameYUV->data, pFrameYUV->linesize, 0, 
+                                pFrameYUV->height, frameRGB->data, frameRGB->linesize);
+
+                    BMPSave(frameRGB, pFrameYUV->width, pFrameYUV->height);
+                }
         }
 
     }
+
 
     return nRet;
 }
@@ -254,3 +250,5 @@ int FFmpegDecoder::BMPSave(AVFrame* pFrameRGB, int width, int height)
     return 0;
 
 }
+
+
