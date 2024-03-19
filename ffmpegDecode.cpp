@@ -43,21 +43,20 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
 
     av_dump_format(m_pFormatCtx, 0, 0, 0);
 
-    for(int i=0; i < m_pFormatCtx->nb_streams; ++i)
+    for(int i = 0; i < m_pFormatCtx->nb_streams; i++)
     {
-        std::cout << i << std::endl;
         if(m_pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
         {
             AVRational avrFps = m_pFormatCtx->streams[i]->avg_frame_rate;
             fFps = static_cast<float>(avrFps.num) / static_cast<float>(avrFps.den);
         }
     }
-    
+
     nInputDuration = m_pFormatCtx->duration / AV_TIME_BASE;
     nTotalFrame = nInputDuration * fFps;
 
-    std::cout << "Duration: " << nInputDuration << "seconds, " << "fps: " << fFps<< std::endl;
-    std::cout << "TotalFrame: " << nTotalFrame << std::endl;
+    std::cout << "Video Duration: " << nInputDuration << " seconds, " << fFps << "fps, " 
+               << nTotalFrame << " frame" << std::endl;
 
     bool bCheckVideo = OpenVideo();
 
