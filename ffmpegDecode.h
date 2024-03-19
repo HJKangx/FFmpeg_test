@@ -17,20 +17,14 @@ extern "C"
 class FFmpegDecoder
 {
 public: 
-    FFmpegDecoder() : pFormatCtx(NULL) {;}
+    FFmpegDecoder();
 
+    ~FFmpegDecoder();
 
 public:
     int OpenFile(const std::string& sInputFile);
-
     int CloseFile();
-
-    int GetNextFrame(AVFrame& pFrame);
-
-    int GetWidth();
-    int GetHeight();
     int DecodeVideo();
-
 
 private:
     int OpenVideo();
@@ -38,26 +32,20 @@ private:
     int CloseVideo();
     int CloseAudio();
 
-    int DecodeAudio(int nStreamIndex, const AVPacket *avpkt, uint8_t* pOutBuffer, size_t nOutBufferSize);
-    
+    int DecodeAudio(int nStreamIndex, const AVPacket *avpkt, uint8_t* pOutBuffer, size_t nOutBufferSize);    
     int GetRGBAframe(AVFrame& pFrameYuv, AVFrame* pOutFrame);
-
     int BMPSave(AVFrame* pFrameRGB,  int width, int height);
 
-    AVFormatContext* pFormatCtx;
-    AVCodecContext* pVideoCodecCtx;
-    AVCodecContext* pAudioCodecCtx;
+    AVFormatContext* m_pFormatCtx;
+    AVCodecContext* m_pVideoCodecCtx;
+    AVCodecContext* m_pAudioCodecCtx;
     
-    AVCodec* pVideoCodec;
-    AVCodec* pAudioCodec;
+    AVCodec* m_pVideoCodec;
+    AVCodec* m_pAudioCodec;
     
-    int nVideoStreamIndex;
-    int nAudioStreamIndex;
+    int m_nVideoStreamIndex;
+    int m_nAudioStreamIndex;
 
-    double dVedeoFramePerSecond;
-    double dVideoBaseTime;
-    double dAudioBaseTime;
     
-
     struct SwsContext* pImgConvertCtx;
 };
