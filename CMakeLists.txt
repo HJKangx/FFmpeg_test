@@ -4,11 +4,8 @@ project(FFmpegTest VERSION ${TEST_VERSION} LANGUAGES C CXX)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
-    libavdevice
-    libavfilter
     libavformat
     libavcodec
-    libswresample
     libswscale
     libavutil
 )
