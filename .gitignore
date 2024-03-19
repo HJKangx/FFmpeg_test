@@ -1,0 +1,13 @@
+*.mp4
+*.jpg
+*.png
+*.bmp
+
+*.log
+*.log
+*.tar*
+
+ThirdParty/cmake/*
+ThirdParty/ffmpeg/*
+build/*
+.vscode/*
