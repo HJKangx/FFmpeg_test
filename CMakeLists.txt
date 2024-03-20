@@ -3,6 +3,8 @@ set(TEST_VERSION "1.00.00")
 project(FFmpegTest VERSION ${TEST_VERSION} LANGUAGES C CXX)
 
 find_package(PkgConfig REQUIRED)
+find_package(fmt REQUIRED)
+
 pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
     libavformat
     libavcodec
@@ -11,6 +13,7 @@ pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
 )
 
 set(FFMPEG_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/ThirdParty/ffmpeg)
+
 
 add_executable(${PROJECT_NAME} 
     ffmpegDecode.cpp
@@ -24,4 +27,5 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME}
     PkgConfig::LIBAV
+    fmt::fmt
 )

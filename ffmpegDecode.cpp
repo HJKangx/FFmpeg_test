@@ -52,7 +52,7 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
         if(m_pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
         {
             m_nVideoStreamIndex = i;
-            std::cout << "Video stream idx : "<< m_nVideoStreamIndex << std::endl;
+            std::cout << "Video stream idx: "<< m_nVideoStreamIndex << std::endl;
 
             AVRational avrFps = m_pFormatCtx->streams[m_nVideoStreamIndex]->avg_frame_rate;
             fFps = static_cast<float>(avrFps.num) / static_cast<float>(avrFps.den);
@@ -75,6 +75,9 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
         }
     }
 
+    fmt::print("Video Duration - {} seconds, {} fps, {} frame\nVideo Info - Width: {}, Height: {}, Video codec: {}, Audio codec: {}\n",
+           fInputDuration, fFps, nTotalFrame, nInputWidth, nInputHeight, stdVideoCodec, stdAudioCodec);
+
     if (m_nVideoStreamIndex == -1 && m_nAudioStreamIndex == -1)
     {
         nRet = static_cast<int>(FD_RESULT::ERROR_NO_AUDIO_AND_VIEDO_STREAM);
@@ -92,12 +95,6 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
         nRet = static_cast<int>(FD_RESULT::WARNING_NO_AUDIO_STREAM);
     }
 
-    std::cout << "Video Duration - " << fInputDuration << " seconds, " << fFps << "fps, " 
-                << nTotalFrame << " frame" << std::endl;
-
-    std::cout << "Video Info - " << "Width: " << nInputWidth << ", Height: " << nInputHeight << ", Video codec: " << stdVideoCodec 
-                << ", Audio codec: " << stdAudioCodec << std::endl;
-                
     nRet = OpenVideo();
     nRet = OpenAudio();
 

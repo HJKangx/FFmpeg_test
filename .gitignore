@@ -9,5 +9,6 @@
 
 ThirdParty/cmake/*
 ThirdParty/ffmpeg/*
+ThirdParty/fmt/*
 build/*
 .vscode/*
