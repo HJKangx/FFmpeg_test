@@ -194,7 +194,7 @@ int FFmpegDecoder::DecodeVideo()
 
                     if (nRet == 0)
                     {
-                        nRet = ConvertRGBAframe(*pFrameYUV, pFrameRGB);
+                        nRet = ConvertRGBAVframe(*pFrameYUV, pFrameRGB);
                         nRet = BMPSave(pFrameRGB, pFrameRGB->width, pFrameRGB->height);
 
                         av_frame_unref(pFrameYUV);
@@ -221,8 +221,6 @@ int FFmpegDecoder::ConvertRGBAVframe(AVFrame& pFrameYUV, AVFrame* pOutFrame)
     int nInputHeight = pFrameYUV.height;
     int nOutputWidth = pFrameYUV.width;
     int nOutputHeight = pFrameYUV.height; 
-
-    std::cout << nInputWidth << std::endl;
 
     pSwsCtx = sws_getContext(nInputWidth, nInputHeight, AV_PIX_FMT_YUV420P,
                     nOutputWidth, nOutputHeight, AV_PIX_FMT_BGR24,
