@@ -33,10 +33,7 @@ public:
 private:
     int OpenVideo();
     int OpenAudio();
-    int CloseVideo();
-    int CloseAudio();
 
-    int DecodeAudio(int nStreamIndex, const AVPacket *avpkt, uint8_t* pOutBuffer, size_t nOutBufferSize);    
     int ConvertRGBAframe(AVFrame& pFrameYuv, AVFrame* pOutFrame);
     int BMPSave(AVFrame* pFrameRGB,  int width, int height);
 

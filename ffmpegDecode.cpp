@@ -287,8 +287,12 @@ int FFmpegDecoder::CloseFile()
     avformat_close_input(&m_pFormatCtx);
     avcodec_close(m_pVideoCodecCtx);
     avcodec_close(m_pAudioCodecCtx);
+    m_pVideoCodecCtx = nullptr;
+    m_pAudioCodecCtx = nullptr;
     m_pVideoCodec = nullptr;
     m_pAudioCodec = nullptr;
+    m_nVideoStreamIndex = -1;
+    m_nAudioStreamIndex = -1;
 
     return nRet;
 }
