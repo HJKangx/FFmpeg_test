@@ -196,7 +196,6 @@ int FFmpegDecoder::DecodeVideo()
                     {
                         nRet = ConvertRGBAVframe(*pFrameYUV, pFrameRGB);
                         nRet = BMPSave(pFrameRGB, pFrameRGB->width, pFrameRGB->height);
-
                         av_frame_unref(pFrameYUV);
                         av_frame_unref(pFrameRGB);
                     }
@@ -239,44 +238,44 @@ int FFmpegDecoder::ConvertRGBAVframe(AVFrame& pFrameYUV, AVFrame* pOutFrame)
     return nRet;
 }
 
-int FFmpegDecoder::BMPSave(AVFrame* pFrameRGB, int width, int height)
+int FFmpegDecoder::BMPSave(AVFrame* pFrameRGB, int nWidth, int nHeight)
 {
-    FILE* file;
-    const char* filename = "FFmpeg_test.bmp";
-    file = fopen(filename, "wb");
+    int nFileSize = 54 + 3 * nWidth * nHeight;
+    std::ofstream ofsFile("FFmpeg_test.bmp");
 
-    if (file) 
+    if (ofsFile.is_open()) 
     {
-        unsigned char bmpfileheader[14] = {'B', 'M', 0, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0};
-        unsigned char bmpinfoheader[40] = {40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 24, 0};
-        long file_size = 54 + 3 * width * height;
-        bmpfileheader[2] = (unsigned char)(file_size);
-        bmpfileheader[3] = (unsigned char)(file_size >> 8);
-        bmpfileheader[4] = (unsigned char)(file_size >> 16);
-        bmpfileheader[5] = (unsigned char)(file_size >> 24);
+        std::vector<unsigned char> vecFileHeader(14, 0);
+        std::vector<unsigned char> vecInfoHeader(40, 0);
 
-        bmpinfoheader[4] = (unsigned char)(width);
-        bmpinfoheader[5] = (unsigned char)(width >> 8);
-        bmpinfoheader[6] = (unsigned char)(width >> 16);
-        bmpinfoheader[7] = (unsigned char)(width >> 24);
-        bmpinfoheader[8] = (unsigned char)(height);
-        bmpinfoheader[9] = (unsigned char)(height >> 8);
-        bmpinfoheader[10] = (unsigned char)(height >> 16);
-        bmpinfoheader[11] = (unsigned char)(height >> 24);
+        vecFileHeader[0] = 'B'; vecFileHeader[1] = 'M';
+        vecFileHeader[2] = nFileSize;
+        vecFileHeader[3] = nFileSize >> 8;
+        vecFileHeader[4] = nFileSize >> 16;
+        vecFileHeader[5] = nFileSize >> 24;
+        vecFileHeader[10] = 54;
+        vecInfoHeader[0] = 40;
+        vecInfoHeader[4] = nWidth;
+        vecInfoHeader[5] = nWidth >> 8;
+        vecInfoHeader[6] = nWidth >> 16;
+        vecInfoHeader[7] = nWidth >> 24;
+        vecInfoHeader[8] = nHeight;
+        vecInfoHeader[9] = nHeight >> 8;
+        vecInfoHeader[10] = nHeight >> 16;
+        vecInfoHeader[11] = nHeight >> 24;
+        vecInfoHeader[12] = 1; 
+        vecInfoHeader[14] = 24;
 
-        fwrite(bmpfileheader, 1, 14, file);
-        fwrite(bmpinfoheader, 1, 40, file);
+        ofsFile.write(reinterpret_cast<const char*>(vecFileHeader.data()), vecFileHeader.size());
+        ofsFile.write(reinterpret_cast<const char*>(vecInfoHeader.data()), vecInfoHeader.size());
 
-        for (int i = height - 1; i >= 0; i--) {
-            fwrite(pFrameRGB->data[0] + i * pFrameRGB->linesize[0], 3, width, file);
-        }
-        fclose(file);
+        for (int i = nHeight - 1; i >= 0; i--) 
+            ofsFile.write(reinterpret_cast<const char*>(pFrameRGB->data[0] + i * pFrameRGB->linesize[0]), nWidth * 3);
     }
     else 
-    {
         std::cerr << "Failed to open file for writing" << std::endl;
-    }
 
+    ofsFile.close();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     std::cout << "Save File" << std::endl;
 

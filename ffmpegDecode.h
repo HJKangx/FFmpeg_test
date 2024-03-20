@@ -1,8 +1,10 @@
 #pragma once
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <chrono>
 #include <thread>
+#include <vector>
 #include <fmt/core.h>
 
 #include "FFMPEG_DEFINE.h"
