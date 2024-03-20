@@ -1,21 +1,30 @@
 #include "ffmpegDecode.h"
 
-
 int main(int argc, char *argv[])
 {
-    // const std::string strInputUrl = "terra.mp4";
     int nRet = 0;
-    const std::string strInputUrl = "output_mpeg.mp4";
+    const std::string strInputUrl = "terra.mp4";
+    // const std::string strInputUrl = "output_mpeg.mp4";
+    // const std::string strInputUrl = "output_264.mp4";
 
-    FFmpegDecoder decoder;
-    nRet = decoder.OpenFile(strInputUrl);
+    FFmpegDecoder FFmpegDecoderObj;
+    nRet = FFmpegDecoderObj.OpenFile(strInputUrl);
 
-    if (nRet != -15 && nRet != -17)
-        nRet = decoder.DecodeVideo();
-    // decoder.CloseFile(); 
+    if (nRet == 0)
+    {
+        nRet = FFmpegDecoderObj.OpenVideo();
+        nRet = FFmpegDecoderObj.OpenAudio();
+        nRet = FFmpegDecoderObj.DecodeVideo();
+    }
+    else if (nRet == -16)
+    {
+        nRet = FFmpegDecoderObj.OpenVideo();
+        nRet = FFmpegDecoderObj.OpenAudio();
+        nRet = FFmpegDecoderObj.DecodeVideo();
+    }
+
+
+    FFmpegDecoderObj.CloseFile(); 
 
     return 0;
 }
-
-//close
-//avformat_close_input(&m_pFormatCtx);

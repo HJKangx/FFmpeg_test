@@ -25,7 +25,6 @@ FFmpegDecoder::~FFmpegDecoder()
 int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
 {
     int nRet = 0;
-    int nTotalFrame = 0;
     int nInputWidth = 0;
     int nInputHeight = 0;
     float fInputDuration = 0.f;
@@ -62,7 +61,7 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
             nInputHeight = m_pFormatCtx->streams[m_nVideoStreamIndex]->codecpar->height;
 
             fInputDuration = static_cast<float>(m_pFormatCtx->duration) / static_cast<float>(AV_TIME_BASE);
-            nTotalFrame = static_cast<int>(fInputDuration * fFps);
+            m_nTotalFrameNumber = static_cast<int>(fInputDuration * fFps);
             stdVideoCodec = m_pVideoCodec->name;
         }
         else if(m_pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
@@ -76,7 +75,7 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
     }
 
     fmt::print("Video Duration - {} seconds, {} fps, {} frame\nVideo Info - Width: {}, Height: {}, Video codec: {}, Audio codec: {}\n",
-           fInputDuration, fFps, nTotalFrame, nInputWidth, nInputHeight, stdVideoCodec, stdAudioCodec);
+           fInputDuration, fFps, m_nTotalFrameNumber, nInputWidth, nInputHeight, stdVideoCodec, stdAudioCodec);
 
     if (m_nVideoStreamIndex == -1 && m_nAudioStreamIndex == -1)
     {
@@ -95,9 +94,6 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
         nRet = static_cast<int>(FD_RESULT::WARNING_NO_AUDIO_STREAM);
     }
 
-    nRet = OpenVideo();
-    nRet = OpenAudio();
-
     return nRet;
 }
 
@@ -107,7 +103,6 @@ int FFmpegDecoder::OpenVideo()
    
     if (m_pVideoCodec != nullptr && m_pFormatCtx != nullptr)
     {
-        // m_pVideoCodec = avcodec_find_decoder(m_pFormatCtx->streams[i]->codecpar->codec_id);
         m_pVideoCodecCtx = avcodec_alloc_context3(m_pVideoCodec);
         nRet = avcodec_parameters_to_context(m_pVideoCodecCtx, m_pFormatCtx->streams[m_nVideoStreamIndex]->codecpar);
 
@@ -154,7 +149,6 @@ int FFmpegDecoder::OpenAudio()
         }
     }
 
-
     return nRet;
 }
 
@@ -168,8 +162,19 @@ int FFmpegDecoder::DecodeVideo()
     AVFrame* pFrameRGB = av_frame_alloc();
     AVPacket* pPacket = av_packet_alloc();
 
-    while (av_read_frame(m_pFormatCtx, pPacket) >= 0)
-    {        
+    // while (av_read_frame(m_pFormatCtx, pPacket) >= 0)
+    while (true)
+    { 
+        nRet = av_read_frame(m_pFormatCtx, pPacket);
+
+
+        if (nRet < 0)
+        {
+            // AVERROR(EAGAIN) -541478725
+            std::cout << nRet << std::endl;
+            return nRet;
+        }
+
         if(pPacket->stream_index == m_nVideoStreamIndex)
         {
             // nPts = (pPacket->dts != AV_NOPTS_VALUE) ? pPacket->dts : 0;
@@ -177,37 +182,37 @@ int FFmpegDecoder::DecodeVideo()
             if (m_pVideoCodecCtx != nullptr)
             {
                 nRet = avcodec_send_packet(m_pVideoCodecCtx, pPacket);
+                av_packet_unref(pPacket);
                 // std::cout << "avcodec_send_packet nRet: " << nRet << " " << pPacket->dts << " / pPacket /" << pPacket->pts << std::endl;
 
                 if (nRet == 0)
                 {
                     nRet = avcodec_receive_frame(m_pVideoCodecCtx, pFrameYUV);
-                    nFrameNumber+=1;
+
+                    nFrameNumber++;
                     std::cout << "Read FrameNumber: " << nFrameNumber << std::endl;
 
-                    // if (nRet == 0)
-                    // {
-                    //     nRet = ConvertRGBAframe(*pFrameYUV, pFrameRGB);
-                    //     av_frame_unref(pFrameYUV);
-                    //     nRet = BMPSave(pFrameRGB, pFrameRGB->width, pFrameRGB->height);
-                    // }
+                    if (nRet == 0)
+                    {
+                        nRet = ConvertRGBAframe(*pFrameYUV, pFrameRGB);
+                        nRet = BMPSave(pFrameRGB, pFrameRGB->width, pFrameRGB->height);
+
+                        av_frame_unref(pFrameYUV);
+                        av_frame_unref(pFrameRGB);
+                    }
                 }
                 else
                 {
-                    std::cout << "avcodec_send_packet - ErrorCode:" << nRet << std::endl;
-                    nRet = -1;
-                    return nRet;
+                    std::cerr << "avcodec_send_packet - ErrorCode:" << nRet << std::endl;
                 }
             }
         }
     }
 
-    av_frame_unref(pFrameRGB);
-    av_packet_unref(pPacket);
     return nRet;
 }
 
-int FFmpegDecoder::ConvertRGBAframe(AVFrame& pFrameYUV, AVFrame* pOutFrame)
+int FFmpegDecoder::ConvertRGBAVframe(AVFrame& pFrameYUV, AVFrame* pOutFrame)
 {
     int nRet = 0;
 

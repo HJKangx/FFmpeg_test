@@ -28,13 +28,13 @@ public:
     int OpenFile(const std::string& sInputFile);
     int CloseFile();
     int DecodeVideo();
-    int DecodeAudio();
-
-private:
+    // int DecodeAudio();
     int OpenVideo();
     int OpenAudio();
 
-    int ConvertRGBAframe(AVFrame& pFrameYuv, AVFrame* pOutFrame);
+private:
+    
+    int ConvertRGBAVframe(AVFrame& pFrameYuv, AVFrame* pOutFrame);
     int BMPSave(AVFrame* pFrameRGB,  int width, int height);
 
     AVFormatContext* m_pFormatCtx;
@@ -46,6 +46,7 @@ private:
     
     int m_nVideoStreamIndex;
     int m_nAudioStreamIndex;
+    int m_nTotalFrameNumber;
 
     struct SwsContext* pImgConvertCtx;
 
