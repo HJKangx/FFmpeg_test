@@ -26,6 +26,7 @@ public:
     int OpenFile(const std::string& sInputFile);
     int CloseFile();
     int DecodeVideo();
+    int DecodeAudio();
 
 private:
     int OpenVideo();
@@ -34,7 +35,7 @@ private:
     int CloseAudio();
 
     int DecodeAudio(int nStreamIndex, const AVPacket *avpkt, uint8_t* pOutBuffer, size_t nOutBufferSize);    
-    int GetRGBAframe(AVFrame& pFrameYuv, AVFrame* pOutFrame);
+    int ConvertRGBAframe(AVFrame& pFrameYuv, AVFrame* pOutFrame);
     int BMPSave(AVFrame* pFrameRGB,  int width, int height);
 
     AVFormatContext* m_pFormatCtx;
