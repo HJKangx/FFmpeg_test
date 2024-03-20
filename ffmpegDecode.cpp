@@ -1,5 +1,4 @@
 #include "ffmpegDecode.h"
-extern "C"
 
 FFmpegDecoder::FFmpegDecoder()
 {
@@ -53,8 +52,8 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
             m_nVideoStreamIndex = i;
             std::cout << "Video stream idx: "<< m_nVideoStreamIndex << std::endl;
 
-            AVRational avrFps = m_pFormatCtx->streams[m_nVideoStreamIndex]->avg_frame_rate;
-            fFps = static_cast<float>(avrFps.num) / static_cast<float>(avrFps.den);
+            AVRational avrAvgFrameRate = m_pFormatCtx->streams[m_nVideoStreamIndex]->avg_frame_rate;
+            fFps = static_cast<float>(avrAvgFrameRate.num) / static_cast<float>(avrAvgFrameRate.den);
 
 			m_pVideoCodec = avcodec_find_decoder(m_pFormatCtx->streams[m_nVideoStreamIndex]->codecpar->codec_id);
             nInputWidth = m_pFormatCtx->streams[m_nVideoStreamIndex]->codecpar->width;

@@ -14,17 +14,23 @@ int main(int argc, char *argv[])
 
     nRet = FFmpegDecoderObj.OpenFile(strInputUrl);
 
-    if (nRet == 0)
+
+    switch (nRet)
     {
+    case 0:
         nRet = FFmpegDecoderObj.OpenVideo();
         nRet = FFmpegDecoderObj.OpenAudio();
         nRet = FFmpegDecoderObj.DecodeVideo();
-    }
-    else if (nRet == -16)
-    {
-        nRet = FFmpegDecoderObj.OpenVideo();
+        break;
+    case -17:
         nRet = FFmpegDecoderObj.OpenAudio();
+        break;
+    case -16:
+        nRet = FFmpegDecoderObj.OpenVideo();
         nRet = FFmpegDecoderObj.DecodeVideo();
+
+    default:
+        break;
     }
 
 
