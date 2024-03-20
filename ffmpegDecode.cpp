@@ -25,10 +25,10 @@ FFmpegDecoder::~FFmpegDecoder()
 int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
 {
     int nRet = 0;
-    int nInputDuration = 0;
     int nTotalFrame = 0;
     int nInputWidth = 0;
     int nInputHeight = 0;
+    float fInputDuration = 0.f;
     float fFps = 0.f;
 
     std::string stdVideoCodec = "None";
@@ -61,8 +61,8 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
             nInputWidth = m_pFormatCtx->streams[m_nVideoStreamIndex]->codecpar->width;
             nInputHeight = m_pFormatCtx->streams[m_nVideoStreamIndex]->codecpar->height;
 
-            nInputDuration = m_pFormatCtx->duration / AV_TIME_BASE;
-            nTotalFrame = nInputDuration * fFps;
+            fInputDuration = static_cast<float>(m_pFormatCtx->duration) / static_cast<float>(AV_TIME_BASE);
+            nTotalFrame = static_cast<int>(fInputDuration * fFps);
             stdVideoCodec = m_pVideoCodec->name;
         }
         else if(m_pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
@@ -77,7 +77,6 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
 
     if (m_nVideoStreamIndex == -1 && m_nAudioStreamIndex == -1)
     {
-        std::cerr << "No Viedo and Audio stream in " << strInputUrl << std::endl;
         nRet = static_cast<int>(FD_RESULT::ERROR_NO_AUDIO_AND_VIEDO_STREAM);
         
         return nRet;
@@ -93,11 +92,11 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
         nRet = static_cast<int>(FD_RESULT::WARNING_NO_AUDIO_STREAM);
     }
 
-    std::cout << "Video Duration - " << nInputDuration << " seconds, " << fFps << "fps, " 
+    std::cout << "Video Duration - " << fInputDuration << " seconds, " << fFps << "fps, " 
                 << nTotalFrame << " frame" << std::endl;
 
-    std::cout << "Video Info - " << "Width: " << nInputWidth << ", Height: " << nInputHeight << ", video codec: " << stdVideoCodec 
-                << ", audio codec: " << stdAudioCodec << std::endl;
+    std::cout << "Video Info - " << "Width: " << nInputWidth << ", Height: " << nInputHeight << ", Video codec: " << stdVideoCodec 
+                << ", Audio codec: " << stdAudioCodec << std::endl;
                 
     nRet = OpenVideo();
     nRet = OpenAudio();
@@ -176,11 +175,8 @@ int FFmpegDecoder::DecodeVideo()
     {        
         if(pPacket->stream_index == m_nVideoStreamIndex)
         {
-            nFrameNumber+=1;
-            std::cout << "Read FrameNumber: " << nFrameNumber << std::endl;
             // nPts = (pPacket->dts != AV_NOPTS_VALUE) ? pPacket->dts : 0;
             // pPacket->pts = nPts;
-
             if (m_pVideoCodecCtx != nullptr)
             {
                 nRet = avcodec_send_packet(m_pVideoCodecCtx, pPacket);
@@ -189,13 +185,15 @@ int FFmpegDecoder::DecodeVideo()
                 if (nRet == 0)
                 {
                     nRet = avcodec_receive_frame(m_pVideoCodecCtx, pFrameYUV);
+                    nFrameNumber+=1;
+                    std::cout << "Read FrameNumber: " << nFrameNumber << std::endl;
 
-                    if (nRet == 0)
-                    {
-                        nRet = ConvertRGBAframe(*pFrameYUV, pFrameRGB);
-                        av_frame_unref(pFrameYUV);
-                        nRet = BMPSave(pFrameRGB, pFrameRGB->width, pFrameRGB->height);
-                    }
+                    // if (nRet == 0)
+                    // {
+                    //     nRet = ConvertRGBAframe(*pFrameYUV, pFrameRGB);
+                    //     av_frame_unref(pFrameYUV);
+                    //     nRet = BMPSave(pFrameRGB, pFrameRGB->width, pFrameRGB->height);
+                    // }
                 }
                 else
                 {
@@ -279,7 +277,7 @@ int FFmpegDecoder::BMPSave(AVFrame* pFrameRGB, int width, int height)
         std::cerr << "Failed to open file for writing" << std::endl;
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
     std::cout << "Save File" << std::endl;
 
     return 0;
