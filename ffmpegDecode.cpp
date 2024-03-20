@@ -142,12 +142,14 @@ int FFmpegDecoder::DecodeVideo()
     int nRet = 0;
     int nFrameNumber  = 0;
     
-
     AVFrame *pFrameYUV = av_frame_alloc();
+    AVFrame *pFrameRGB = av_frame_alloc();
     AVPacket *pPacket = av_packet_alloc();
 
     while (av_read_frame(m_pFormatCtx, pPacket) >= 0)
     {
+        std::cout << "av_read_frame:" << pPacket->dts << " / pPacket /" << pPacket->pts << std::endl;
+        
         if(pPacket->stream_index == m_nVideoStreamIndex)
         {
             nFrameNumber+=1;
@@ -156,50 +158,59 @@ int FFmpegDecoder::DecodeVideo()
             if (m_pVideoCodecCtx != nullptr)
             {
                 nRet = avcodec_send_packet(m_pVideoCodecCtx, pPacket);
+
+                std::cout << "avcodec_send_packet nRet: " << nRet << " " << pPacket->dts << " / pPacket /" << pPacket->pts << std::endl;
+
                 
                 if (nRet == 0)
+                {
                     nRet = avcodec_receive_frame(m_pVideoCodecCtx, pFrameYUV);
+
+                    if (nRet == 0)
+                    {
+                        nRet = ConvertRGBAframe(*pFrameYUV, pFrameRGB);
+                        nRet = BMPSave(pFrameRGB, pFrameRGB->width, pFrameRGB->height);
+                    }
+                }
                 else
                 {
+                    std::cout << "avcodec_send_packet - ErrorCode:" << nRet << std::endl;
                     nRet = -1;
                     return nRet;
                 }
-                    
             }
-
-            if (nRet == 0)
-                {
-                    struct SwsContext *sws_ctx = nullptr;
-                    int srcW = pFrameYUV->width; 
-                    int srcH = pFrameYUV->height;
-                    int dstW = pFrameYUV->width;
-                    int dstH = pFrameYUV->height; 
-
-                    sws_ctx = sws_getContext(srcW, srcH, AV_PIX_FMT_YUV420P,
-                        dstW, dstH, AV_PIX_FMT_BGR24,
-                        SWS_BILINEAR, nullptr, nullptr, nullptr);
-
-                    AVFrame *frameRGB = av_frame_alloc();
-                    frameRGB->format = AV_PIX_FMT_BGR24;
-                    frameRGB->width  = pFrameYUV->width;
-                    frameRGB->height = pFrameYUV->height;
-
-                    uint8_t* out_buffer = (uint8_t*)av_malloc(av_image_get_buffer_size(AV_PIX_FMT_RGB24, frameRGB->width, frameRGB->height, 1));
-                    av_image_fill_arrays(frameRGB->data, frameRGB->linesize, out_buffer, AV_PIX_FMT_RGB24, frameRGB->width, frameRGB->height, 1);
-
-                    sws_scale(sws_ctx, (const uint8_t* const*)pFrameYUV->data, pFrameYUV->linesize, 0, 
-                                pFrameYUV->height, frameRGB->data, frameRGB->linesize);
-
-                    BMPSave(frameRGB, pFrameYUV->width, pFrameYUV->height);
-                }
         }
-
     }
-
-
     return nRet;
 }
 
+int FFmpegDecoder::ConvertRGBAframe(AVFrame pFrameYUV, AVFrame* pOutFrame)
+{
+    int nRet = 0;
+    struct SwsContext *pSwsCtx = nullptr;
+    int nInputWidth = pFrameYUV.width; 
+    int nInputHeight = pFrameYUV.height;
+    int nOutputWidth = pFrameYUV.width;
+    int nOutputHeight = pFrameYUV.height; 
+
+    std::cout << nInputWidth << std::endl;
+
+    pSwsCtx = sws_getContext(nInputWidth, nInputHeight, AV_PIX_FMT_YUV420P,
+                    nOutputWidth, nOutputHeight, AV_PIX_FMT_BGR24,
+                    SWS_BILINEAR, nullptr, nullptr, nullptr);
+
+    pOutFrame->format = AV_PIX_FMT_BGR24;
+    pOutFrame->width  = nInputWidth;
+    pOutFrame->height = nInputHeight;
+
+    uint8_t* out_buffer = (uint8_t*)av_malloc(av_image_get_buffer_size(AV_PIX_FMT_RGB24, pOutFrame->width, pOutFrame->height, 1));
+    av_image_fill_arrays(pOutFrame->data, pOutFrame->linesize, out_buffer, AV_PIX_FMT_RGB24, pOutFrame->width, pOutFrame->height, 1);
+
+    sws_scale(pSwsCtx, (const uint8_t* const*)pFrameYUV.data, pFrameYUV.linesize, 0, 
+                        nInputHeight, pOutFrame->data, pOutFrame->linesize);
+
+    return nRet;
+}
 
 int FFmpegDecoder::BMPSave(AVFrame* pFrameRGB, int width, int height)
 {
