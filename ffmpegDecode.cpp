@@ -192,7 +192,7 @@ int FFmpegDecoder::DecodeVideo()
                 if (nRet == 0)
                 {
                     nRet = ConvertRGBAVframe(*pFrameYUV, *pFrameRGB);
-                    nRet = BMPSave(pFrameRGB, pFrameRGB->width, pFrameRGB->height);
+                    nRet = SaveBMP(pFrameRGB, pFrameRGB->width, pFrameRGB->height);
                     av_frame_unref(pFrameYUV);
                     av_frame_unref(pFrameRGB);
                 }
@@ -248,7 +248,6 @@ int FFmpegDecoder::DecodeAudio(std::ofstream& ofsWAVFile)
                 {
                     
                     av_frame_unref(pFrameAudio);
-                    av_frame_unref(pFrameWAV);
                 }
             }
         }
@@ -284,7 +283,7 @@ int FFmpegDecoder::ConvertRGBAVframe(AVFrame& pFrameYUV, AVFrame& pOutFrame)
     return nRet;
 }
 
-int FFmpegDecoder::BMPSave(AVFrame* pFrameRGB, int nWidth, int nHeight)
+int FFmpegDecoder::SaveBMP(AVFrame* pFrameRGB, int nWidth, int nHeight)
 {
     int nFileSize = 54 + 3 * nWidth * nHeight;
     std::ofstream ofsBMPFile("FFmpeg_test.bmp");
