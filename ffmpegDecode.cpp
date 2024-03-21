@@ -136,6 +136,7 @@ int FFmpegDecoder::OpenAudio()
         if (m_pAudioCodecCtx != nullptr && m_pAudioCodecCtx->codec_id != 0 && nRet >= 0)
         {
             nRet = (avcodec_open2)(m_pAudioCodecCtx, m_pAudioCodec, nullptr);
+            
 
             if (nRet != 0)
             {
@@ -145,14 +146,13 @@ int FFmpegDecoder::OpenAudio()
             } 
         }
     }
-
     return nRet;
 }
 
 int FFmpegDecoder::DecodeVideo()
 {
     int nRet = 0;
-    int nFrameNumber  = 0;
+    int nFrameNumber = 0;
     int nPts = 0;
     
     AVFrame* pFrameYUV = av_frame_alloc();
@@ -164,6 +164,61 @@ int FFmpegDecoder::DecodeVideo()
     { 
         nRet = av_read_frame(m_pFormatCtx, pPacket);
 
+        if (nRet < 0)
+        {
+            // AVERROR(EAGAIN) -541478725
+            if (nRet == AVERROR(EAGAIN))
+            {
+                nRet = 0;
+                return nRet;
+            }
+            return nRet;
+        }
+        if(pPacket->stream_index == m_nVideoStreamIndex)
+        {
+            // nPts = (pPacket->dts != AV_NOPTS_VALUE) ? pPacket->dts : 0;
+            // pPacket->pts = nPts;
+            nRet = avcodec_send_packet(m_pVideoCodecCtx, pPacket);
+            av_packet_unref(pPacket);
+            // std::cout << "avcodec_send_packet nRet: " << nRet << " " << pPacket->dts << " / pPacket /" << pPacket->pts << std::endl;
+
+            if (nRet == 0)
+            {
+                nRet = avcodec_receive_frame(m_pVideoCodecCtx, pFrameYUV);
+
+                nFrameNumber++;
+                std::cout << "Read FrameNumber: " << nFrameNumber << std::endl;
+
+                if (nRet == 0)
+                {
+                    nRet = ConvertRGBAVframe(*pFrameYUV, *pFrameRGB);
+                    nRet = BMPSave(pFrameRGB, pFrameRGB->width, pFrameRGB->height);
+                    av_frame_unref(pFrameYUV);
+                    av_frame_unref(pFrameRGB);
+                }
+            }
+            else
+            {
+                std::cerr << "avcodec_send_packet - ErrorCode:" << nRet << std::endl;
+            }
+        }
+    }
+    return nRet;
+}
+
+int FFmpegDecoder::DecodeAudio(std::ofstream& ofsWAVFile)
+{
+    int nRet = 0;
+    int nFrameNumber  = 0;
+    
+    AVFrame* pFrameAudio = av_frame_alloc();
+    AVPacket* pPacket = av_packet_alloc();
+
+    MakeWAVHeader(ofsWAVFile);
+
+    while (true)
+    { 
+        nRet = av_read_frame(m_pFormatCtx, pPacket);
 
         if (nRet < 0)
         {
@@ -173,58 +228,31 @@ int FFmpegDecoder::DecodeVideo()
                 nRet = 0;
                 return nRet;
             }
-            else 
-                return nRet;
+            return nRet;
         }
 
-        if(pPacket->stream_index == m_nVideoStreamIndex)
+        if(pPacket->stream_index == m_nAudioStreamIndex)
         {
-            // nPts = (pPacket->dts != AV_NOPTS_VALUE) ? pPacket->dts : 0;
-            // pPacket->pts = nPts;
-            if (m_pVideoCodecCtx != nullptr)
-            {
-                nRet = avcodec_send_packet(m_pVideoCodecCtx, pPacket);
-                av_packet_unref(pPacket);
-                // std::cout << "avcodec_send_packet nRet: " << nRet << " " << pPacket->dts << " / pPacket /" << pPacket->pts << std::endl;
 
+            nRet = avcodec_send_packet(m_pAudioCodecCtx, pPacket);
+
+            av_packet_unref(pPacket);
+            if (nRet == 0)
+            {
+                nRet = avcodec_receive_frame(m_pAudioCodecCtx, pFrameAudio);
+
+                nFrameNumber++;
+                std::cout << "Read Audio FrameNumber: " << nFrameNumber << std::endl;
+                
                 if (nRet == 0)
                 {
-                    nRet = avcodec_receive_frame(m_pVideoCodecCtx, pFrameYUV);
-
-                    nFrameNumber++;
-                    std::cout << "Read FrameNumber: " << nFrameNumber << std::endl;
-
-                    if (nRet == 0)
-                    {
-                        nRet = ConvertRGBAVframe(*pFrameYUV, *pFrameRGB);
-                        nRet = BMPSave(pFrameRGB, pFrameRGB->width, pFrameRGB->height);
-                        av_frame_unref(pFrameYUV);
-                        av_frame_unref(pFrameRGB);
-                    }
-                }
-                else
-                {
-                    std::cerr << "avcodec_send_packet - ErrorCode:" << nRet << std::endl;
+                    
+                    av_frame_unref(pFrameAudio);
+                    av_frame_unref(pFrameWAV);
                 }
             }
         }
     }
-
-    return nRet;
-}
-
-int FFmpegDecoder::DecodeAudio()
-{
-    int nRet = 0;
-    AVPacket* pPacket = av_packet_alloc();
-
-    // while (true)
-    // { 
-    //     nRet = av_read_frame(m_pFormatCtx, pPacket);
-    
-    
-    // }
-
     return nRet;
 }
 
@@ -259,13 +287,14 @@ int FFmpegDecoder::ConvertRGBAVframe(AVFrame& pFrameYUV, AVFrame& pOutFrame)
 int FFmpegDecoder::BMPSave(AVFrame* pFrameRGB, int nWidth, int nHeight)
 {
     int nFileSize = 54 + 3 * nWidth * nHeight;
-    std::ofstream ofsFile("FFmpeg_test.bmp");
+    std::ofstream ofsBMPFile("FFmpeg_test.bmp");
 
-    if (ofsFile.is_open()) 
+    if (ofsBMPFile.is_open())
     {
         std::vector<unsigned char> vecFileHeader(14, 0);
         std::vector<unsigned char> vecInfoHeader(40, 0);
 
+        
         vecFileHeader[0] = 'B'; vecFileHeader[1] = 'M';
         vecFileHeader[2] = nFileSize;
         vecFileHeader[3] = nFileSize >> 8;
@@ -281,24 +310,108 @@ int FFmpegDecoder::BMPSave(AVFrame* pFrameRGB, int nWidth, int nHeight)
         vecInfoHeader[9] = nHeight >> 8;
         vecInfoHeader[10] = nHeight >> 16;
         vecInfoHeader[11] = nHeight >> 24;
-        vecInfoHeader[12] = 1; 
+        vecInfoHeader[12] =  1; 
         vecInfoHeader[14] = 24;
 
-        ofsFile.write(reinterpret_cast<const char*>(vecFileHeader.data()), vecFileHeader.size());
-        ofsFile.write(reinterpret_cast<const char*>(vecInfoHeader.data()), vecInfoHeader.size());
+        ofsBMPFile.write(reinterpret_cast<const char*>(vecFileHeader.data()), vecFileHeader.size());
+        ofsBMPFile.write(reinterpret_cast<const char*>(vecInfoHeader.data()), vecInfoHeader.size());
 
         for (int i = nHeight - 1; i >= 0; i--) 
-            ofsFile.write(reinterpret_cast<const char*>(pFrameRGB->data[0] + i * pFrameRGB->linesize[0]), nWidth * 3);
+            ofsBMPFile.write(reinterpret_cast<const char*>(pFrameRGB->data[0] + i * pFrameRGB->linesize[0]), nWidth * 3);
     }
     else 
         std::cerr << "Failed to open file for writing" << std::endl;
 
-    ofsFile.close();
+    ofsBMPFile.close();
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     std::cout << "Save File" << std::endl;
 
     return 0;
 }
+
+int FFmpegDecoder::GetAudioBitDepth(int& nBitDepth)
+{
+    int nRet = 0;
+    AVSampleFormat sampleFmt = m_pAudioCodecCtx->sample_fmt;
+
+    switch (sampleFmt) 
+    {
+        case AV_SAMPLE_FMT_U8:
+        case AV_SAMPLE_FMT_U8P:
+            nBitDepth = 8;
+            break;
+        case AV_SAMPLE_FMT_S16:
+        case AV_SAMPLE_FMT_S16P:
+            nBitDepth = 16;
+            break;
+        case AV_SAMPLE_FMT_S32:
+        case AV_SAMPLE_FMT_S32P:
+        case AV_SAMPLE_FMT_FLT:
+        case AV_SAMPLE_FMT_FLTP:
+            nBitDepth = 32;
+            break;
+        case AV_SAMPLE_FMT_DBL:
+        case AV_SAMPLE_FMT_DBLP:
+            nBitDepth = 64;
+            break;
+        default:
+            std::cerr << "No sample_fmt" << std::endl;
+            nBitDepth = -1;
+    }
+
+    return nRet;
+}
+
+int FFmpegDecoder::MakeWAVHeader(std::ofstream& ofsWAVFile)
+{
+    int nRet = 0;
+    int nBitDepth = 0;
+    int nSampleRate = m_pAudioCodecCtx->sample_rate;
+    int nChannels = m_pAudioCodecCtx->channels;
+    const double dFREQUENCY = 440.0; // A4의 주파수 (440Hz)
+    int nFmtChunkSize = 16; // WAV
+    int nAudioFormat = 1; // PCM
+
+    GetAudioBitDepth(nBitDepth);
+
+    int byteRate = nSampleRate * nChannels * nBitDepth / 8;
+    short blockAlign = nChannels * nBitDepth / 8;
+
+    float fInputDuration = static_cast<float>(m_pFormatCtx->duration) / static_cast<float>(AV_TIME_BASE);
+    int nFileSize = 36 + nSampleRate * fInputDuration * nBitDepth / 8 * nChannels;
+
+    int nDataChunkSize = nSampleRate * fInputDuration * nBitDepth / 8 * nChannels;
+
+    if (ofsWAVFile.is_open())
+    {
+        ofsWAVFile.write("RIFF", 4);
+        ofsWAVFile.write(reinterpret_cast<const char*>(&nFileSize), 4);
+
+        ofsWAVFile.write("fmt ", 4);
+        ofsWAVFile.write(reinterpret_cast<const char*>(&nFmtChunkSize), 4);
+        ofsWAVFile.write(reinterpret_cast<const char*>(&nAudioFormat), 2);
+        ofsWAVFile.write(reinterpret_cast<const char*>(&nChannels), 2);
+        ofsWAVFile.write(reinterpret_cast<const char*>(&nSampleRate), 4);
+        ofsWAVFile.write(reinterpret_cast<const char*>(&byteRate), 4);
+        ofsWAVFile.write(reinterpret_cast<const char*>(&blockAlign), 2);
+        ofsWAVFile.write(reinterpret_cast<const char*>(&nBitDepth), 2);
+
+        ofsWAVFile.write("data", 4);
+        ofsWAVFile.write(reinterpret_cast<const char*>(&nDataChunkSize), 4);
+    }
+    ofsWAVFile.close();    
+    
+    return nRet;
+}
+
+int FFmpegDecoder::SaveWAV(AVFrame* pFrameAudio, std::ofstream& ofsWAVFile)
+{
+    int nRet = 0;
+
+
+    return nRet;
+}
+
 
 int FFmpegDecoder::CloseFile()
 {

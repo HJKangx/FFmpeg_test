@@ -25,15 +25,19 @@ public:
     ~FFmpegDecoder();
 public:
     int OpenFile(const std::string& sInputFile);
-    int CloseFile();
-    int DecodeVideo();
-    int DecodeAudio();
     int OpenVideo();
-    int OpenAudio();
+    int OpenAudio();    
+    int DecodeVideo();
+    int DecodeAudio(std::ofstream& ofsWAVFile);
+    
+    int CloseFile();
 private:
     
     int ConvertRGBAVframe(AVFrame& pFrameYuv, AVFrame& pOutFrame);
-    int BMPSave(AVFrame* pFrameRGB,  int width, int height);
+    int SaveBMP(AVFrame* pFrameRGB,  int width, int height);
+    int MakeWAVHeader(std::ofstream& ofsWAVFile);
+    int GetAudioBitDepth(int& nBitDepth);
+    int SaveWAV(AVFrame* pFrameAudio, std::ofstream& ofsWAVFile);
 
     AVFormatContext* m_pFormatCtx;
     AVCodecContext* m_pVideoCodecCtx;
