@@ -23,6 +23,7 @@ public:
     FFmpegDecoder();
 
     ~FFmpegDecoder();
+    
 public:
     int OpenFile(const std::string& sInputFile);
     int OpenVideo();
@@ -31,22 +32,22 @@ public:
     int DecodeAudio(std::ofstream& ofsWAVFile);
     
     int CloseFile();
+
 private:
-    
     int ConvertRGBAVframe(AVFrame& pFrameYuv, AVFrame& pOutFrame);
     int SaveBMP(AVFrame* pFrameRGB,  int width, int height);
     int MakeWAVHeader(std::ofstream& ofsWAVFile);
-    int GetAudioBitDepth(int& nBitDepth);
+    int GetAudioBitDepth(short& nBitDepth);
     int SaveWAV(AVFrame* pFrameAudio, std::ofstream& ofsWAVFile);
 
     AVFormatContext* m_pFormatCtx;
     AVCodecContext* m_pVideoCodecCtx;
     AVCodecContext* m_pAudioCodecCtx;
-    
     AVCodec* m_pVideoCodec;
     AVCodec* m_pAudioCodec;
     
     int m_nVideoStreamIndex;
     int m_nAudioStreamIndex;
     int m_nTotalFrameNumber;
+    float m_fInputDuration;
 };

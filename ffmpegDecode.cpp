@@ -11,6 +11,8 @@ FFmpegDecoder::FFmpegDecoder()
 
     m_nVideoStreamIndex = -1;
     m_nAudioStreamIndex = -1;
+    m_nTotalFrameNumber = 0;
+    m_fInputDuration = 0.f;
 }
 
 FFmpegDecoder::~FFmpegDecoder()
@@ -24,7 +26,6 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
     int nRet = 0;
     int nInputWidth = 0;
     int nInputHeight = 0;
-    float fInputDuration = 0.f;
     float fFps = 0.f;
 
     std::string strVideoCodecName = "None";
@@ -57,8 +58,8 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
             nInputWidth = m_pFormatCtx->streams[m_nVideoStreamIndex]->codecpar->width;
             nInputHeight = m_pFormatCtx->streams[m_nVideoStreamIndex]->codecpar->height;
 
-            fInputDuration = static_cast<float>(m_pFormatCtx->duration) / static_cast<float>(AV_TIME_BASE);
-            m_nTotalFrameNumber = static_cast<int>(fInputDuration * fFps);
+            m_fInputDuration = static_cast<float>(m_pFormatCtx->duration) / static_cast<float>(AV_TIME_BASE);
+            m_nTotalFrameNumber = static_cast<int>(m_fInputDuration * fFps);
             strVideoCodecName = m_pVideoCodec->name;
         }
         else if(m_pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
@@ -72,7 +73,7 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
     }
 
     fmt::print("Video Duration - {} seconds, {} fps, {} frame\nVideo Info - Width: {}, Height: {}, Video codec: {}, Audio codec: {}\n",
-           fInputDuration, fFps, m_nTotalFrameNumber, nInputWidth, nInputHeight, strVideoCodecName, strAudioCodecName);
+           m_fInputDuration, fFps, m_nTotalFrameNumber, nInputWidth, nInputHeight, strVideoCodecName, strAudioCodecName);
 
     if (m_nVideoStreamIndex == -1 && m_nAudioStreamIndex == -1)
     {
@@ -246,7 +247,7 @@ int FFmpegDecoder::DecodeAudio(std::ofstream& ofsWAVFile)
                 
                 if (nRet == 0)
                 {
-                    
+                    SaveWAV(pFrameAudio, ofsWAVFile);
                     av_frame_unref(pFrameAudio);
                 }
             }
@@ -293,7 +294,6 @@ int FFmpegDecoder::SaveBMP(AVFrame* pFrameRGB, int nWidth, int nHeight)
         std::vector<unsigned char> vecFileHeader(14, 0);
         std::vector<unsigned char> vecInfoHeader(40, 0);
 
-        
         vecFileHeader[0] = 'B'; vecFileHeader[1] = 'M';
         vecFileHeader[2] = nFileSize;
         vecFileHeader[3] = nFileSize >> 8;
@@ -328,7 +328,7 @@ int FFmpegDecoder::SaveBMP(AVFrame* pFrameRGB, int nWidth, int nHeight)
     return 0;
 }
 
-int FFmpegDecoder::GetAudioBitDepth(int& nBitDepth)
+int FFmpegDecoder::GetAudioBitDepth(short& nBitDepth)
 {
     int nRet = 0;
     AVSampleFormat sampleFmt = m_pAudioCodecCtx->sample_fmt;
@@ -357,57 +357,57 @@ int FFmpegDecoder::GetAudioBitDepth(int& nBitDepth)
             std::cerr << "No sample_fmt" << std::endl;
             nBitDepth = -1;
     }
-
     return nRet;
 }
 
 int FFmpegDecoder::MakeWAVHeader(std::ofstream& ofsWAVFile)
 {
     int nRet = 0;
-    int nBitDepth = 0;
     int nSampleRate = m_pAudioCodecCtx->sample_rate;
-    int nChannels = m_pAudioCodecCtx->channels;
-    const double dFREQUENCY = 440.0; // A4의 주파수 (440Hz)
-    int nFmtChunkSize = 16; // WAV
-    int nAudioFormat = 1; // PCM
+    short sBitsPerSample = 0;
+    short sChannels = m_pAudioCodecCtx->channels;
+    GetAudioBitDepth(sBitsPerSample);
 
-    GetAudioBitDepth(nBitDepth);
+    int byteRate = nSampleRate * sChannels * sBitsPerSample / 8;
+    short blockAlign = sChannels * sBitsPerSample / 8; 
 
-    int byteRate = nSampleRate * nChannels * nBitDepth / 8;
-    short blockAlign = nChannels * nBitDepth / 8;
+    ofsWAVFile.write("RIFF", 4);
+    ofsWAVFile.write(reinterpret_cast<const char*>(&nSampleRate), 4);
+    ofsWAVFile.write("WAVE", 4);
 
-    float fInputDuration = static_cast<float>(m_pFormatCtx->duration) / static_cast<float>(AV_TIME_BASE);
-    int nFileSize = 36 + nSampleRate * fInputDuration * nBitDepth / 8 * nChannels;
+    ofsWAVFile.write("fmt ", 4);
+    int fmtChunkSize = 16;
+    ofsWAVFile.write(reinterpret_cast<const char*>(&fmtChunkSize), 4);
+    short audioFormat = 1;
+    ofsWAVFile.write(reinterpret_cast<const char*>(&audioFormat), 2);
+    ofsWAVFile.write(reinterpret_cast<const char*>(&sChannels), 2);
+    ofsWAVFile.write(reinterpret_cast<const char*>(&nSampleRate), 4); //
+    ofsWAVFile.write(reinterpret_cast<const char*>(&byteRate), 4);
+    ofsWAVFile.write(reinterpret_cast<const char*>(&blockAlign), 2);
+    ofsWAVFile.write(reinterpret_cast<const char*>(&sBitsPerSample), 2);
 
-    int nDataChunkSize = nSampleRate * fInputDuration * nBitDepth / 8 * nChannels;
+    ofsWAVFile.write("data", 4);
+    ofsWAVFile.write(reinterpret_cast<const char*>(&nSampleRate), 4); //
 
-    if (ofsWAVFile.is_open())
-    {
-        ofsWAVFile.write("RIFF", 4);
-        ofsWAVFile.write(reinterpret_cast<const char*>(&nFileSize), 4);
-
-        ofsWAVFile.write("fmt ", 4);
-        ofsWAVFile.write(reinterpret_cast<const char*>(&nFmtChunkSize), 4);
-        ofsWAVFile.write(reinterpret_cast<const char*>(&nAudioFormat), 2);
-        ofsWAVFile.write(reinterpret_cast<const char*>(&nChannels), 2);
-        ofsWAVFile.write(reinterpret_cast<const char*>(&nSampleRate), 4);
-        ofsWAVFile.write(reinterpret_cast<const char*>(&byteRate), 4);
-        ofsWAVFile.write(reinterpret_cast<const char*>(&blockAlign), 2);
-        ofsWAVFile.write(reinterpret_cast<const char*>(&nBitDepth), 2);
-
-        ofsWAVFile.write("data", 4);
-        ofsWAVFile.write(reinterpret_cast<const char*>(&nDataChunkSize), 4);
-    }
-    ofsWAVFile.close();    
-    
     return nRet;
 }
 
 int FFmpegDecoder::SaveWAV(AVFrame* pFrameAudio, std::ofstream& ofsWAVFile)
 {
     int nRet = 0;
+    const int data_size = av_get_bytes_per_sample(m_pAudioCodecCtx->sample_fmt);
 
+    for (int i = 0; i < pFrameAudio->nb_samples; ++i) 
+    {
+        for (int ch = 0; ch < m_pAudioCodecCtx->channels; ++ch) {
+            const uint8_t* buf = pFrameAudio->data[ch] + data_size * i;
 
+            ofsWAVFile.write(reinterpret_cast<const char*>(buf), data_size);
+        }
+    }
+
+    
+    // ofsWAVFile.close();
     return nRet;
 }
 

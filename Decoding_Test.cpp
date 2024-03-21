@@ -21,11 +21,10 @@ int main(int argc, char *argv[])
     switch (nRet)
     {
     case 0:
-        nRet = FFmpegDecoderObj.OpenVideo();
+        // nRet = FFmpegDecoderObj.OpenVideo();
         nRet = FFmpegDecoderObj.OpenAudio();
-        // nRet = FFmpegDecoderObj.MakeWAVHeader(ofsWAVFile);
 
-        nRet = FFmpegDecoderObj.DecodeVideo();
+        // nRet = FFmpegDecoderObj.DecodeVideo();
         nRet = FFmpegDecoderObj.DecodeAudio(ofsWAVFile);
         break;
     case -17:
@@ -38,6 +37,21 @@ int main(int argc, char *argv[])
     default:
         break;
     }
+
+    ofsWAVFile.seekp(0, std::ios::end);
+    std::streampos fileSize = ofsWAVFile.tellp();
+
+    int dataChunkSize = fileSize - 44; 
+    int riffChunkSize = fileSize - 8;
+
+    ofsWAVFile.seekp(4);
+    ofsWAVFile.write(reinterpret_cast<const char*>(&riffChunkSize), 4);
+
+    ofsWAVFile.seekp(40);
+    ofsWAVFile.write(reinterpret_cast<const char*>(&dataChunkSize), 4);
+
+    ofsWAVFile.close();
+
 
     FFmpegDecoderObj.CloseFile(); 
     std::clock_t clockEndTime = std::clock();
