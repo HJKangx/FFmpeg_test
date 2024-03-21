@@ -6,7 +6,6 @@
 #include <thread>
 #include <vector>
 #include <fmt/core.h>
-
 #include "FFMPEG_DEFINE.h"
 
 extern "C"
@@ -18,25 +17,22 @@ extern "C"
 #include <libswscale/swscale.h>
 }
 
-
 class FFmpegDecoder
 {
 public: 
     FFmpegDecoder();
 
     ~FFmpegDecoder();
-
 public:
     int OpenFile(const std::string& sInputFile);
     int CloseFile();
     int DecodeVideo();
-    // int DecodeAudio();
+    int DecodeAudio();
     int OpenVideo();
     int OpenAudio();
-
 private:
     
-    int ConvertRGBAVframe(AVFrame& pFrameYuv, AVFrame* pOutFrame);
+    int ConvertRGBAVframe(AVFrame& pFrameYuv, AVFrame& pOutFrame);
     int BMPSave(AVFrame* pFrameRGB,  int width, int height);
 
     AVFormatContext* m_pFormatCtx;
@@ -49,8 +45,4 @@ private:
     int m_nVideoStreamIndex;
     int m_nAudioStreamIndex;
     int m_nTotalFrameNumber;
-
-    struct SwsContext* pImgConvertCtx;
-
-    
 };

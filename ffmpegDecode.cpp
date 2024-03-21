@@ -9,8 +9,6 @@ FFmpegDecoder::FFmpegDecoder()
     m_pVideoCodec = nullptr;
     m_pAudioCodec = nullptr;
 
-    pImgConvertCtx = nullptr;
-
     m_nVideoStreamIndex = -1;
     m_nAudioStreamIndex = -1;
 }
@@ -29,8 +27,8 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
     float fInputDuration = 0.f;
     float fFps = 0.f;
 
-    std::string stdVideoCodec = "None";
-    std::string stdAudioCodec = "None";
+    std::string strVideoCodecName = "None";
+    std::string strAudioCodecName = "None";
 
     std::cout << "OpenFile: " << strInputUrl << std::endl;
 
@@ -61,7 +59,7 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
 
             fInputDuration = static_cast<float>(m_pFormatCtx->duration) / static_cast<float>(AV_TIME_BASE);
             m_nTotalFrameNumber = static_cast<int>(fInputDuration * fFps);
-            stdVideoCodec = m_pVideoCodec->name;
+            strVideoCodecName = m_pVideoCodec->name;
         }
         else if(m_pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO)
         {
@@ -69,12 +67,12 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
             std::cout << "Audio stream idx: "<< m_nAudioStreamIndex << std::endl;
 
 			m_pAudioCodec = avcodec_find_decoder(m_pFormatCtx->streams[m_nAudioStreamIndex]->codecpar->codec_id);
-            stdAudioCodec = m_pAudioCodec->name;
+            strAudioCodecName = m_pAudioCodec->name;
         }
     }
 
     fmt::print("Video Duration - {} seconds, {} fps, {} frame\nVideo Info - Width: {}, Height: {}, Video codec: {}, Audio codec: {}\n",
-           fInputDuration, fFps, m_nTotalFrameNumber, nInputWidth, nInputHeight, stdVideoCodec, stdAudioCodec);
+           fInputDuration, fFps, m_nTotalFrameNumber, nInputWidth, nInputHeight, strVideoCodecName, strAudioCodecName);
 
     if (m_nVideoStreamIndex == -1 && m_nAudioStreamIndex == -1)
     {
@@ -170,8 +168,13 @@ int FFmpegDecoder::DecodeVideo()
         if (nRet < 0)
         {
             // AVERROR(EAGAIN) -541478725
-            std::cout << nRet << std::endl;
-            return nRet;
+            if (nRet == AVERROR(EAGAIN))
+            {
+                nRet = 0;
+                return nRet;
+            }
+            else 
+                return nRet;
         }
 
         if(pPacket->stream_index == m_nVideoStreamIndex)
@@ -193,7 +196,7 @@ int FFmpegDecoder::DecodeVideo()
 
                     if (nRet == 0)
                     {
-                        nRet = ConvertRGBAVframe(*pFrameYUV, pFrameRGB);
+                        nRet = ConvertRGBAVframe(*pFrameYUV, *pFrameRGB);
                         nRet = BMPSave(pFrameRGB, pFrameRGB->width, pFrameRGB->height);
                         av_frame_unref(pFrameYUV);
                         av_frame_unref(pFrameRGB);
@@ -210,7 +213,23 @@ int FFmpegDecoder::DecodeVideo()
     return nRet;
 }
 
-int FFmpegDecoder::ConvertRGBAVframe(AVFrame& pFrameYUV, AVFrame* pOutFrame)
+int FFmpegDecoder::DecodeAudio()
+{
+    int nRet = 0;
+    AVPacket* pPacket = av_packet_alloc();
+
+    // while (true)
+    // { 
+    //     nRet = av_read_frame(m_pFormatCtx, pPacket);
+    
+    
+    // }
+
+    return nRet;
+}
+
+
+int FFmpegDecoder::ConvertRGBAVframe(AVFrame& pFrameYUV, AVFrame& pOutFrame)
 {
     int nRet = 0;
 
@@ -224,15 +243,15 @@ int FFmpegDecoder::ConvertRGBAVframe(AVFrame& pFrameYUV, AVFrame* pOutFrame)
                     nOutputWidth, nOutputHeight, AV_PIX_FMT_BGR24,
                     SWS_BILINEAR, nullptr, nullptr, nullptr);
 
-    pOutFrame->format = AV_PIX_FMT_BGR24;
-    pOutFrame->width  = nOutputWidth;
-    pOutFrame->height = nOutputHeight;
+    pOutFrame.format = AV_PIX_FMT_BGR24;
+    pOutFrame.width  = nOutputWidth;
+    pOutFrame.height = nOutputHeight;
 
     uint8_t* out_buffer = (uint8_t*)av_malloc(av_image_get_buffer_size(AV_PIX_FMT_RGB24, nOutputWidth, nOutputHeight, 1));
-    av_image_fill_arrays(pOutFrame->data, pOutFrame->linesize, out_buffer, AV_PIX_FMT_RGB24, nOutputWidth, nOutputHeight, 1);
+    av_image_fill_arrays(pOutFrame.data, pOutFrame.linesize, out_buffer, AV_PIX_FMT_RGB24, nOutputWidth, nOutputHeight, 1);
 
     sws_scale(pSwsCtx, (const uint8_t* const*)pFrameYUV.data, pFrameYUV.linesize, 0, 
-                        nInputHeight, pOutFrame->data, pOutFrame->linesize);
+                        nInputHeight, pOutFrame.data, pOutFrame.linesize);
 
     return nRet;
 }

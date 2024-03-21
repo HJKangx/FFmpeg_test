@@ -14,7 +14,6 @@ int main(int argc, char *argv[])
 
     nRet = FFmpegDecoderObj.OpenFile(strInputUrl);
 
-
     switch (nRet)
     {
     case 0:
@@ -28,18 +27,15 @@ int main(int argc, char *argv[])
     case -16:
         nRet = FFmpegDecoderObj.OpenVideo();
         nRet = FFmpegDecoderObj.DecodeVideo();
-
     default:
         break;
     }
-
 
     FFmpegDecoderObj.CloseFile(); 
     std::clock_t clockEndTime = std::clock();
 
     dProcessDuration = 1000.0 * (clockEndTime - clockStartTime) / CLOCKS_PER_SEC;
     std::cout << "ProcessDuration: " << dProcessDuration << "ms" << std::endl;
-
 
     return 0;
 }
