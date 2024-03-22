@@ -1,4 +1,4 @@
-#include "ffmpegDecode.h"
+#include "ffmpegDecoder.h"
 
 FFmpegDecoder::FFmpegDecoder()
 {
@@ -35,13 +35,15 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
 
     if (avformat_open_input(&m_pFormatCtx, strInputUrl.c_str(), nullptr, nullptr) < 0)
 	{
+        nRet = -1;
         std::cerr << "Can't Open Stream & Read Header in " << strInputUrl << std::endl;
-		return false;
+		return nRet;
 	}
     if (avformat_find_stream_info(m_pFormatCtx, nullptr) < 0)
-	{
+	{   
+        nRet = -2;
         std::cerr << "Can't Read Packets of " << strInputUrl << std::endl;
-		return false;
+		return nRet;
 	}
     // av_dump_format(m_pFormatCtx, 0, 0, 0);
     for(int i = 0; i < m_pFormatCtx->nb_streams; i++)
@@ -77,6 +79,7 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
 
     if (m_nVideoStreamIndex == -1 && m_nAudioStreamIndex == -1)
     {
+        std::cerr << "No Viedo & Audio stream in " << strInputUrl << std::endl;
         nRet = static_cast<int>(FD_RESULT::ERROR_NO_AUDIO_AND_VIEDO_STREAM);
         
         return nRet;
@@ -104,11 +107,11 @@ int FFmpegDecoder::OpenVideo()
         m_pVideoCodecCtx = avcodec_alloc_context3(m_pVideoCodec);
         nRet = avcodec_parameters_to_context(m_pVideoCodecCtx, m_pFormatCtx->streams[m_nVideoStreamIndex]->codecpar);
 
-        if (m_pVideoCodecCtx != nullptr && m_pVideoCodecCtx->codec_id != 0 && nRet >= 0)
+        if (m_pVideoCodecCtx->codec_id != 0 && nRet >= 0)
         {
-            nRet = (avcodec_open2)(m_pVideoCodecCtx, m_pVideoCodec, nullptr);
+            nRet = avcodec_open2(m_pVideoCodecCtx, m_pVideoCodec, nullptr); //
 
-            if (nRet != 0)
+            if (nRet < 0)
             {
                 nRet = -1;
                 std::cout << "Fail avcodec_open2 Video" << std::endl;        
@@ -134,10 +137,9 @@ int FFmpegDecoder::OpenAudio()
         m_pAudioCodecCtx = avcodec_alloc_context3(m_pAudioCodec);
         nRet = avcodec_parameters_to_context(m_pAudioCodecCtx, m_pFormatCtx->streams[m_nAudioStreamIndex]->codecpar);
 
-        if (m_pAudioCodecCtx != nullptr && m_pAudioCodecCtx->codec_id != 0 && nRet >= 0)
+        if (m_pAudioCodecCtx->codec_id != 0 && nRet >= 0)
         {
             nRet = (avcodec_open2)(m_pAudioCodecCtx, m_pAudioCodec, nullptr);
-            
 
             if (nRet != 0)
             {
@@ -160,7 +162,6 @@ int FFmpegDecoder::DecodeVideo()
     AVFrame* pFrameRGB = av_frame_alloc();
     AVPacket* pPacket = av_packet_alloc();
 
-    // while (av_read_frame(m_pFormatCtx, pPacket) >= 0)
     while (true)
     { 
         nRet = av_read_frame(m_pFormatCtx, pPacket);
@@ -170,8 +171,9 @@ int FFmpegDecoder::DecodeVideo()
             // AVERROR(EAGAIN) -541478725
             if (nRet == AVERROR(EAGAIN))
             {
-                nRet = 0;
-                return nRet;
+                continue;
+                // nRet = 0;
+                // return nRet;
             }
             return nRet;
         }
@@ -275,12 +277,13 @@ int FFmpegDecoder::ConvertRGBAVframe(AVFrame& pFrameYUV, AVFrame& pOutFrame)
     pOutFrame.width  = nOutputWidth;
     pOutFrame.height = nOutputHeight;
 
-    uint8_t* out_buffer = (uint8_t*)av_malloc(av_image_get_buffer_size(AV_PIX_FMT_RGB24, nOutputWidth, nOutputHeight, 1));
-    av_image_fill_arrays(pOutFrame.data, pOutFrame.linesize, out_buffer, AV_PIX_FMT_RGB24, nOutputWidth, nOutputHeight, 1);
+    uint8_t* pOutbuffer = (uint8_t*)av_malloc(av_image_get_buffer_size(AV_PIX_FMT_RGB24, nOutputWidth, nOutputHeight, 1));
+    av_image_fill_arrays(pOutFrame.data, pOutFrame.linesize, pOutbuffer, AV_PIX_FMT_RGB24, nOutputWidth, nOutputHeight, 1);
 
     sws_scale(pSwsCtx, (const uint8_t* const*)pFrameYUV.data, pFrameYUV.linesize, 0, 
                         nInputHeight, pOutFrame.data, pOutFrame.linesize);
 
+    // pSwsCtx allocate / pOutbuffer allocate 체크
     return nRet;
 }
 
@@ -315,6 +318,7 @@ int FFmpegDecoder::SaveBMP(AVFrame* pFrameRGB, int nWidth, int nHeight)
         ofsBMPFile.write(reinterpret_cast<const char*>(vecFileHeader.data()), vecFileHeader.size());
         ofsBMPFile.write(reinterpret_cast<const char*>(vecInfoHeader.data()), vecInfoHeader.size());
 
+        // channel 값 변수화
         for (int i = nHeight - 1; i >= 0; i--) 
             ofsBMPFile.write(reinterpret_cast<const char*>(pFrameRGB->data[0] + i * pFrameRGB->linesize[0]), nWidth * 3);
     }
@@ -325,7 +329,7 @@ int FFmpegDecoder::SaveBMP(AVFrame* pFrameRGB, int nWidth, int nHeight)
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     std::cout << "Save File" << std::endl;
 
-    return 0;
+    return 0; //
 }
 
 int FFmpegDecoder::GetAudioBitDepth(short& nBitDepth)
@@ -372,7 +376,7 @@ int FFmpegDecoder::MakeWAVHeader(std::ofstream& ofsWAVFile)
     short blockAlign = sChannels * sBitsPerSample / 8; 
 
     ofsWAVFile.write("RIFF", 4);
-    ofsWAVFile.write(reinterpret_cast<const char*>(&nSampleRate), 4);
+    ofsWAVFile.write(reinterpret_cast<const char*>(&nSampleRate), 4); //
     ofsWAVFile.write("WAVE", 4);
 
     ofsWAVFile.write("fmt ", 4);
@@ -381,7 +385,7 @@ int FFmpegDecoder::MakeWAVHeader(std::ofstream& ofsWAVFile)
     short audioFormat = 1;
     ofsWAVFile.write(reinterpret_cast<const char*>(&audioFormat), 2);
     ofsWAVFile.write(reinterpret_cast<const char*>(&sChannels), 2);
-    ofsWAVFile.write(reinterpret_cast<const char*>(&nSampleRate), 4); //
+    ofsWAVFile.write(reinterpret_cast<const char*>(&nSampleRate), 4);
     ofsWAVFile.write(reinterpret_cast<const char*>(&byteRate), 4);
     ofsWAVFile.write(reinterpret_cast<const char*>(&blockAlign), 2);
     ofsWAVFile.write(reinterpret_cast<const char*>(&sBitsPerSample), 2);
@@ -405,7 +409,6 @@ int FFmpegDecoder::SaveWAV(AVFrame* pFrameAudio, std::ofstream& ofsWAVFile)
             ofsWAVFile.write(reinterpret_cast<const char*>(buf), data_size);
         }
     }
-
     
     // ofsWAVFile.close();
     return nRet;
@@ -419,12 +422,6 @@ int FFmpegDecoder::CloseFile()
     avformat_close_input(&m_pFormatCtx);
     avcodec_close(m_pVideoCodecCtx);
     avcodec_close(m_pAudioCodecCtx);
-    m_pVideoCodecCtx = nullptr;
-    m_pAudioCodecCtx = nullptr;
-    m_pVideoCodec = nullptr;
-    m_pAudioCodec = nullptr;
-    m_nVideoStreamIndex = -1;
-    m_nAudioStreamIndex = -1;
-
+    // m_pVideoCodec = nullptr; close 추가
     return nRet;
 }

@@ -15,8 +15,8 @@ pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
 set(FFMPEG_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/ThirdParty/ffmpeg)
 
 add_executable(${PROJECT_NAME} 
-    ffmpegDecode.cpp
-    Decoding_Test.cpp)
+    ffmpegDecoder.cpp
+    ffmpegTest.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${FFMPEG_INCLUDE_DIRS}
