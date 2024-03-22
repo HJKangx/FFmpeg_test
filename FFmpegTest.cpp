@@ -1,6 +1,16 @@
-#include "ffmpegTest.h"
+#include "FFmpegTest.h"
 
-int main(int argc, char *argv[])
+FFmpegTest::FFmpegTest()
+{
+    pFFmpegDecoder = std::make_shared<FFmpegDecoder>();
+}
+
+FFmpegTest::~FFmpegTest()
+{
+    std::cout << "End FFmpegTest" << std::endl;
+}
+
+int FFmpegTest::DecoingTest()
 {
     int nRet = 0;
     float fProcessDuration = 0.f;
@@ -10,30 +20,28 @@ int main(int argc, char *argv[])
     const std::string strOutputWAVUrl = "test.wav";
     std::ofstream ofsWAVFile(strOutputWAVUrl);
 
-    FFmpegDecoder FFmpegDecoderObj;
- 
     std::clock_t clockStartTime = std::clock();
 
-    nRet = FFmpegDecoderObj.OpenFile(strInputUrl);
+    nRet = pFFmpegDecoder->OpenFile(strInputUrl);
     
     std::cout << nRet << std::endl;
     
     switch (nRet)
     {
     case 0:
-        nRet = FFmpegDecoderObj.OpenVideo();
-        // nRet = FFmpegDecoderObj.OpenAudio();
+        nRet = pFFmpegDecoder->OpenVideo();
+        // nRet = pFFmpegDecoder->OpenAudio();
 
-        nRet = FFmpegDecoderObj.DecodeVideo();
-        // nRet = FFmpegDecoderObj.DecodeAudio(ofsWAVFile);
+        nRet = pFFmpegDecoder->DecodeVideo();
+        // nRet = pFFmpegDecoder->DecodeAudio(ofsWAVFile);
         break;
     case -17:
-        nRet = FFmpegDecoderObj.OpenAudio();
-        nRet = FFmpegDecoderObj.DecodeAudio(ofsWAVFile);
+        nRet = pFFmpegDecoder->OpenAudio();
+        nRet = pFFmpegDecoder->DecodeAudio(ofsWAVFile);
         break;
     case -16:
-        nRet = FFmpegDecoderObj.OpenVideo();
-        nRet = FFmpegDecoderObj.DecodeVideo();
+        nRet = pFFmpegDecoder->OpenVideo();
+        nRet = pFFmpegDecoder->DecodeVideo();
     default:
         break;
     }
@@ -45,11 +53,12 @@ int main(int argc, char *argv[])
     fProcessDuration = 1000.0 * (clockEndTime - clockStartTime) / CLOCKS_PER_SEC;
     std::cout << "ProcessDuration: " << fProcessDuration << "ms" << std::endl;
 
-    return 0;
+    return nRet;
 }
 
-int WriteSizeWAVHeader(std::ofstream& ofsWAVFile)
+int FFmpegTest::WriteSizeWAVHeader(std::ofstream& ofsWAVFile)
 {
+    int nRet = 0;
     ofsWAVFile.seekp(0, std::ios::end);
     std::streampos fileSize = ofsWAVFile.tellp();
 
@@ -58,9 +67,18 @@ int WriteSizeWAVHeader(std::ofstream& ofsWAVFile)
 
     ofsWAVFile.seekp(4);
     ofsWAVFile.write(reinterpret_cast<const char*>(&nRiffChunkSize), 4);
-
     ofsWAVFile.seekp(40);
     ofsWAVFile.write(reinterpret_cast<const char*>(&nDataChunkSize), 4);
 
     ofsWAVFile.close();
+
+    return nRet;
+}
+
+int main(int argc, char *argv[])
+{
+    FFmpegTest FFmpegTestObj;
+    FFmpegTestObj.DecoingTest();
+        
+    return 0;
 }
