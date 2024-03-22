@@ -152,6 +152,54 @@ int FFmpegDecoder::OpenAudio()
     return nRet;
 }
 
+int FFmpegDecoder::DecodeVideoOneFrame(AVFrame& pOutFrame)
+{
+    int nRet = 0;
+    int nFrameNumber = 0;
+    int nPts = 0;
+    
+    AVFrame* pFrameYUV = av_frame_alloc();
+    AVPacket* pPacket = av_packet_alloc();
+
+    while (true)
+    { 
+        nRet = av_read_frame(m_pFormatCtx, pPacket);
+
+        if (nRet < 0)
+        {
+            // AVERROR(EAGAIN) -541478725
+            if (nRet == AVERROR(EAGAIN))
+            {
+                continue;
+            }
+            else if (nRet == AVERROR_EOF)
+            {
+                return -10;
+            }
+            return nRet;
+        }
+        if(pPacket->stream_index == m_nVideoStreamIndex)
+        {
+            nRet = avcodec_send_packet(m_pVideoCodecCtx, pPacket);
+
+            if (nRet == 0)
+            {
+                nRet = avcodec_receive_frame(m_pVideoCodecCtx, &pOutFrame);
+
+                if (nRet == 0)
+                {
+                    return nRet;
+                }
+            }
+            else
+            {
+                std::cerr << "avcodec_send_packet - ErrorCode:" << nRet << std::endl;
+            }
+        }
+    }
+    return nRet;
+}
+
 int FFmpegDecoder::DecodeVideo()
 {
     int nRet = 0;
@@ -172,8 +220,6 @@ int FFmpegDecoder::DecodeVideo()
             if (nRet == AVERROR(EAGAIN))
             {
                 continue;
-                // nRet = 0;
-                // return nRet;
             }
             return nRet;
         }
@@ -183,7 +229,6 @@ int FFmpegDecoder::DecodeVideo()
             // pPacket->pts = nPts;
             nRet = avcodec_send_packet(m_pVideoCodecCtx, pPacket);
             av_packet_unref(pPacket);
-            // std::cout << "avcodec_send_packet nRet: " << nRet << " " << pPacket->dts << " / pPacket /" << pPacket->pts << std::endl;
 
             if (nRet == 0)
             {
@@ -194,8 +239,8 @@ int FFmpegDecoder::DecodeVideo()
 
                 if (nRet == 0)
                 {
-                    nRet = ConvertRGBAVframe(*pFrameYUV, *pFrameRGB);
-                    nRet = SaveBMP(pFrameRGB, pFrameRGB->width, pFrameRGB->height);
+                    nRet = ConvertRGBAVframe(*pFrameYUV, *pFrameRGB);                    
+                    nRet = SaveBMP(*pFrameRGB, pFrameRGB->width, pFrameRGB->height);
                     av_frame_unref(pFrameYUV);
                     av_frame_unref(pFrameRGB);
                 }
@@ -228,8 +273,7 @@ int FFmpegDecoder::DecodeAudio(std::ofstream& ofsWAVFile)
             // AVERROR(EAGAIN) -541478725
             if (nRet == AVERROR(EAGAIN))
             {
-                nRet = 0;
-                return nRet;
+                continue;                
             }
             return nRet;
         }
@@ -287,9 +331,10 @@ int FFmpegDecoder::ConvertRGBAVframe(AVFrame& pFrameYUV, AVFrame& pOutFrame)
     return nRet;
 }
 
-int FFmpegDecoder::SaveBMP(AVFrame* pFrameRGB, int nWidth, int nHeight)
+int FFmpegDecoder::SaveBMP(AVFrame& pFrameRGB, int nWidth, int nHeight)
 {
     int nFileSize = 54 + 3 * nWidth * nHeight;
+
     std::ofstream ofsBMPFile("FFmpeg_test.bmp");
 
     if (ofsBMPFile.is_open())
@@ -320,13 +365,13 @@ int FFmpegDecoder::SaveBMP(AVFrame* pFrameRGB, int nWidth, int nHeight)
 
         // channel 값 변수화
         for (int i = nHeight - 1; i >= 0; i--) 
-            ofsBMPFile.write(reinterpret_cast<const char*>(pFrameRGB->data[0] + i * pFrameRGB->linesize[0]), nWidth * 3);
+            ofsBMPFile.write(reinterpret_cast<const char*>(pFrameRGB.data[0] + i * pFrameRGB.linesize[0]), nWidth * 3);
     }
     else 
         std::cerr << "Failed to open file for writing" << std::endl;
 
     ofsBMPFile.close();
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     std::cout << "Save File" << std::endl;
 
     return 0; //

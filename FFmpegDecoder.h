@@ -29,14 +29,16 @@ public:
     int OpenVideo();
     int OpenAudio();    
     int DecodeVideo();
+    int DecodeVideoOneFrame(AVFrame& pOutFrame);
     int DecodeAudio(std::ofstream& ofsWAVFile);
-    std::shared_ptr<FFmpegDecoder> m_pFFmpegDecoder;
+
+
     
 private:
     int ConvertRGBAVframe(AVFrame& pFrameYuv, AVFrame& pOutFrame);
-    int SaveBMP(AVFrame* pFrameRGB,  int width, int height);
     int MakeWAVHeader(std::ofstream& ofsWAVFile);
     int GetAudioBitDepth(short& nBitDepth);
+    int SaveBMP(AVFrame& pFrameRGB,  int width, int height);
     int SaveWAV(AVFrame* pFrameAudio, std::ofstream& ofsWAVFile);
     int CloseFile();
 

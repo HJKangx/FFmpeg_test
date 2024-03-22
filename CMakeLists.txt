@@ -10,14 +10,15 @@ pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
     libavcodec
     libswscale
     libavutil
-)
+    )
 
 set(FFMPEG_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/ThirdParty/ffmpeg)
 
 add_executable(${PROJECT_NAME} 
     FFmpegDecoder.cpp
     FFmpegEncoder.cpp
-    FFmpegTest.cpp)
+    FFmpegTest.cpp
+    )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${FFMPEG_INCLUDE_DIRS}
@@ -28,4 +29,4 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME}
     PkgConfig::LIBAV
     fmt::fmt
-)
+    )
