@@ -181,6 +181,7 @@ int FFmpegDecoder::DecodeVideoOneFrame(AVFrame& pOutFrame)
         if(pPacket->stream_index == m_nVideoStreamIndex)
         {
             nRet = avcodec_send_packet(m_pVideoCodecCtx, pPacket);
+            av_packet_unref(pPacket);
 
             if (nRet == 0)
             {
@@ -328,6 +329,10 @@ int FFmpegDecoder::ConvertRGBAVframe(AVFrame& pFrameYUV, AVFrame& pOutFrame)
                         nInputHeight, pOutFrame.data, pOutFrame.linesize);
 
     // pSwsCtx allocate / pOutbuffer allocate 체크
+
+    sws_freeContext(pSwsCtx);
+    free(pOutbuffer);
+
     return nRet;
 }
 
