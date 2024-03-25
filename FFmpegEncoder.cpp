@@ -97,7 +97,7 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264
             if (nRet >= 0)
             {
                 ofsH264File.write((const char*)pPacket->data, pPacket->size);
-                std::cout << "pPacket->pts: " << pPacket->pts << "pPacket->dts" << pPacket->dts<< std::endl;
+                // std::cout << "pPacket->pts: " << pPacket->pts << "pPacket->dts" << pPacket->dts<< std::endl;
 
                 av_packet_unref(pPacket);
                 return nRet;

@@ -43,9 +43,6 @@ int FFmpegTest::StartEncoding()
         nRet = m_pFFmpegDecoder->DecodeVideoOneFrame(*m_pFrameData);
         if (nRet == -10)
         {
-            // nRet = m_pFFmpegEncoder->EncodeVideo(*m_pFrameData, ofsH264File);
-            // for (int i=0; i<34; i++)
-            //     nRet = m_pFFmpegEncoder->EncodeVideo(*m_pFrameData, ofsH264File);
             m_pFFmpegEncoder->FlushEncodeVideo(*m_pFrameData, ofsH264File);
             std::cout << "Decoder & Encoder End.. nFrameNumber: " << nFrameNumber << std::endl;
             ofsH264File.close();
@@ -57,6 +54,7 @@ int FFmpegTest::StartEncoding()
         std::cout << "main Count: " << nFrameNumber << std::endl;
 
     }
+    ofsH264File.close();
     return nRet;
 }
 
