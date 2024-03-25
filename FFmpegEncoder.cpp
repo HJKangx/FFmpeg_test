@@ -96,6 +96,9 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264
 
             if (nRet >= 0)
             {
+                m_nEncoderCount++;
+                pPacket->pts = av_rescale_q(m_nEncoderCount, (AVRational){1, 30}, m_pEncoderCodecCtx->time_base);
+                // pPacket->pts = m_nEncoderCount * m_pEncoderCodecCtx->time_base.num / m_pEncoderCodecCtx->time_base.den;
                 ofsH264File.write((const char*)pPacket->data, pPacket->size);
                 // std::cout << "pPacket->pts: " << pPacket->pts << "pPacket->dts" << pPacket->dts<< std::endl;
 
