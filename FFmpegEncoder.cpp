@@ -49,21 +49,36 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264
     int nRet = 0;
     AVPacket* pPacket = av_packet_alloc();
 
-    nRet = avcodec_send_frame(m_pEncoderCodecCtx, &pFrameData);
 
-    if (nRet >= 0)
+    while (true)
     {
-        nRet = avcodec_receive_packet(m_pEncoderCodecCtx, pPacket);
+        nRet = avcodec_send_frame(m_pEncoderCodecCtx, &pFrameData);
+
         if (nRet >= 0)
         {
-            m_nEncoderCount++;
-            std::cout << "m_nEncoderCount" << m_nEncoderCount << std::endl;
-            ofsH264File.write((const char*)pPacket->data, pPacket->size);
-        }
-        else
-        {
-            std::cout << "Fail Receive Encode Packet" << m_nEncoderCount << std::endl;
+            nRet = avcodec_receive_packet(m_pEncoderCodecCtx, pPacket);
+            if (nRet == AVERROR(EAGAIN))
+            {
+                continue;
+            }
+             else if (nRet == AVERROR_EOF)
+            {
+                return -99;
+            }
+
+            if (nRet >= 0)
+            {
+                m_nEncoderCount++;
+                std::cout << "m_nEncoderCount" << m_nEncoderCount << std::endl;
+                ofsH264File.write((const char*)pPacket->data, pPacket->size);
+                return nRet;
+            }
+            else
+            {
+                std::cout << "Fail Receive Encode Packet" << m_nEncoderCount << std::endl;
+            }
         }
     }
+
     return nRet;
 }

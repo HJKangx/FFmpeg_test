@@ -158,7 +158,6 @@ int FFmpegDecoder::DecodeVideoOneFrame(AVFrame& pOutFrame)
     int nFrameNumber = 0;
     int nPts = 0;
     
-    AVFrame* pFrameYUV = av_frame_alloc();
     AVPacket* pPacket = av_packet_alloc();
 
     while (true)
@@ -167,7 +166,6 @@ int FFmpegDecoder::DecodeVideoOneFrame(AVFrame& pOutFrame)
 
         if (nRet < 0)
         {
-            // AVERROR(EAGAIN) -541478725
             if (nRet == AVERROR(EAGAIN))
             {
                 continue;
