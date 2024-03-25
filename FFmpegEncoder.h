@@ -37,6 +37,4 @@ private:
     AVCodec* m_pEncoderCodec;
 
     int m_nEncoderCount;
-    int m_nEAGAINCount;
-
 };

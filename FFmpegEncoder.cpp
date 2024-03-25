@@ -64,8 +64,6 @@ int FFmpegEncoder::FlushEncodeVideo(const AVFrame& pFrameData, std::ofstream& of
         {
             ofsH264File.write((const char*)pPacket->data, pPacket->size);
             av_packet_unref(pPacket);
-            m_nEAGAINCount++;
-            std::cout << "Encoder Count: " << m_nEAGAINCount << std::endl;
             continue;
         }
         else
@@ -99,9 +97,9 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264
             if (nRet >= 0)
             {
                 ofsH264File.write((const char*)pPacket->data, pPacket->size);
+                std::cout << "pPacket->pts: " << pPacket->pts << "pPacket->dts" << pPacket->dts<< std::endl;
+
                 av_packet_unref(pPacket);
-                m_nEAGAINCount++;
-                std::cout << "Encoder Count: " << m_nEAGAINCount << std::endl;
                 return nRet;
             }
             else
