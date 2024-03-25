@@ -14,6 +14,7 @@ extern "C"
 #include <libavformat/avformat.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/avutil.h>
+#include <libavutil/opt.h>
 #include <libswscale/swscale.h>
 }
 
@@ -23,15 +24,15 @@ public:
     FFmpegEncoder();
 
     ~FFmpegEncoder();
+    int SetEncoder();
     
 public:
-    int EncodeVideo(AVFrame& pFrameYUV);
+    int EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264File);
 
 private:
     AVFormatContext* m_pFormatCtx;
     AVCodecContext* m_pEncoderCodecCtx;
     AVCodec* m_pEncoderCodec;
-    
 
-
+    int m_nEncoderCount;
 };
