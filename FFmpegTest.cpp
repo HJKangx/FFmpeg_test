@@ -49,8 +49,6 @@ int FFmpegTest::StartEncoding()
         }
         nRet = m_pFFmpegEncoder->EncodeVideo(*m_pFrameData, ofsH264File);
         nFrameNumber++;
-
-
     }
     return nRet;
 }
@@ -91,11 +89,7 @@ int FFmpegTest::DecoingTest(const std::string& strInputUrl)
 int FFmpegTest::EncoingTest(const std::string& strInputUrl)
 {
     int nRet = 0;
-    
-
     nRet = m_pFFmpegDecoder->OpenFile(strInputUrl);
-    
-    std::cout << nRet << std::endl;
     
     switch (nRet)
     {
@@ -116,12 +110,11 @@ int FFmpegTest::EncoingTest(const std::string& strInputUrl)
     return nRet;
 }
 
-
 int main(int argc, char *argv[])
 {
     float fProcessDuration = 0.f;
-    // const std::string strInputUrl = "./TestVideo/terra.mp4";
-    const std::string strInputUrl = "./TestVideo/output_mpeg.mp4";
+    const std::string strInputUrl = "./TestVideo/terra.mp4";
+    // const std::string strInputUrl = "./TestVideo/output_mpeg.mp4";
     // const std::string strInputUrl = "./TestVideo/output_264.mp4";
     
     FFmpegTest FFmpegTestObj;
@@ -131,8 +124,8 @@ int main(int argc, char *argv[])
     FFmpegTestObj.EncoingTest(strInputUrl);
 
     std::clock_t clockEndTime = std::clock();
-    std::cout << "ProcessDuration: " << fProcessDuration << "ms" << std::endl;
     fProcessDuration = 1000.0 * (clockEndTime - clockStartTime) / CLOCKS_PER_SEC;
+    std::cout << "ProcessDuration: " << fProcessDuration << "ms" << std::endl;
 
     return 0;
 }

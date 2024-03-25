@@ -22,8 +22,8 @@ int FFmpegEncoder::SetEncoder()
     m_pEncoderCodecCtx->bit_rate = 1132321;
     m_pEncoderCodecCtx->width = 1280;  
     m_pEncoderCodecCtx->height = 720;
-    m_pEncoderCodecCtx->time_base = (AVRational){1, 25};
-    m_pEncoderCodecCtx->framerate = (AVRational){25, 1};
+    m_pEncoderCodecCtx->time_base = (AVRational){1, 30};
+    m_pEncoderCodecCtx->framerate = (AVRational){30, 1};
     m_pEncoderCodecCtx->gop_size = 10;
     m_pEncoderCodecCtx->max_b_frames = 1;
     m_pEncoderCodecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
@@ -32,8 +32,8 @@ int FFmpegEncoder::SetEncoder()
     {
         av_opt_set(m_pEncoderCodecCtx->priv_data, "preset", "slow", 0);
     }
-
     nRet = avcodec_open2(m_pEncoderCodecCtx, m_pEncoderCodec, NULL);
+    
     if (nRet < 0)
     {
         nRet = -1;
@@ -49,7 +49,6 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264
     int nRet = 0;
     AVPacket* pPacket = av_packet_alloc();
 
-
     while (true)
     {
         nRet = avcodec_send_frame(m_pEncoderCodecCtx, &pFrameData);
@@ -61,9 +60,10 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264
             {
                 continue;
             }
-             else if (nRet == AVERROR_EOF)
+            else if (nRet == AVERROR_EOF)
             {
-                return -99;
+                nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_END_FILE);
+                return nRet;
             }
 
             if (nRet >= 0)
@@ -75,8 +75,16 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264
             }
             else
             {
+                nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_FAIL_RECEIVE_PACKET);
                 std::cout << "Fail Receive Encode Packet" << m_nEncoderCount << std::endl;
+                return nRet;
             }
+        }
+        else
+        {
+            nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_FAIL_SEND_FRAME);
+            std::cout << "Fail Send Frame Encode" << m_nEncoderCount << std::endl;
+            return nRet;
         }
     }
 
