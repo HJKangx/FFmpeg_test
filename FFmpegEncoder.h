@@ -25,9 +25,11 @@ public:
 
     ~FFmpegEncoder();
     int SetEncoder();
-    
-public:
     int EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264File);
+    int FlushEncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264File);
+    
+private:
+    int CloseEncoder();
 
 private:
     AVFormatContext* m_pFormatCtx;
@@ -35,4 +37,6 @@ private:
     AVCodec* m_pEncoderCodec;
 
     int m_nEncoderCount;
+    int m_nEAGAINCount;
+
 };

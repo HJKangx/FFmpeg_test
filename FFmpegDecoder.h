@@ -40,7 +40,7 @@ private:
     int GetAudioBitDepth(short& nBitDepth);
     int SaveBMP(AVFrame& pFrameRGB,  int width, int height);
     int SaveWAV(AVFrame* pFrameAudio, std::ofstream& ofsWAVFile);
-    int CloseFile();
+    int CloseDecoder();
 
     AVFormatContext* m_pFormatCtx;
     AVCodecContext* m_pVideoCodecCtx;

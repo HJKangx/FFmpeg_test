@@ -17,7 +17,7 @@ FFmpegDecoder::FFmpegDecoder()
 
 FFmpegDecoder::~FFmpegDecoder()
 {
-    CloseFile();
+    CloseDecoder();
     std::cout << ("End FFmpegDecoder.") << std::endl;
 }
 
@@ -95,6 +95,8 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
         nRet = static_cast<int>(FD_RESULT::WARNING_NO_AUDIO_STREAM);
     }
 
+            
+    std::cout << m_pFormatCtx->bit_rate << "m_pFormatCtx->bit_rate" << std::endl;
     return nRet;
 }
 
@@ -183,6 +185,7 @@ int FFmpegDecoder::DecodeVideoOneFrame(AVFrame& pOutFrame)
 
             if (nRet == 0)
             {
+                
                 nRet = avcodec_receive_frame(m_pVideoCodecCtx, &pOutFrame);
 
                 if (nRet == 0)
@@ -463,7 +466,7 @@ int FFmpegDecoder::SaveWAV(AVFrame* pFrameAudio, std::ofstream& ofsWAVFile)
 }
 
 
-int FFmpegDecoder::CloseFile()
+int FFmpegDecoder::CloseDecoder()
 {
     int nRet = 0;
 

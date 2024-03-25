@@ -44,11 +44,18 @@ int FFmpegTest::StartEncoding()
         if (nRet == -10)
         {
             // nRet = m_pFFmpegEncoder->EncodeVideo(*m_pFrameData, ofsH264File);
+            // for (int i=0; i<34; i++)
+            //     nRet = m_pFFmpegEncoder->EncodeVideo(*m_pFrameData, ofsH264File);
+            m_pFFmpegEncoder->FlushEncodeVideo(*m_pFrameData, ofsH264File);
             std::cout << "Decoder & Encoder End.. nFrameNumber: " << nFrameNumber << std::endl;
+            ofsH264File.close();
             break;
         }
         nRet = m_pFFmpegEncoder->EncodeVideo(*m_pFrameData, ofsH264File);
+
         nFrameNumber++;
+        std::cout << "main Count: " << nFrameNumber << std::endl;
+
     }
     return nRet;
 }
@@ -102,6 +109,7 @@ int FFmpegTest::EncoingTest(const std::string& strInputUrl)
         nRet = m_pFFmpegDecoder->OpenVideo();
         nRet = m_pFFmpegEncoder->SetEncoder();
         nRet = StartEncoding();
+
         break;
     default:
         break;
@@ -124,7 +132,7 @@ int main(int argc, char *argv[])
     FFmpegTestObj.EncoingTest(strInputUrl);
 
     std::clock_t clockEndTime = std::clock();
-    fProcessDuration = 1000.0 * (clockEndTime - clockStartTime) / CLOCKS_PER_SEC;
+    fProcessDuration = (clockEndTime - clockStartTime) / CLOCKS_PER_SEC;
     std::cout << "ProcessDuration: " << fProcessDuration << "ms" << std::endl;
 
     return 0;
