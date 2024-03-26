@@ -96,7 +96,6 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
     }
 
             
-    std::cout << m_pFormatCtx->bit_rate << "m_pFormatCtx->bit_rate" << std::endl;
     return nRet;
 }
 
@@ -235,7 +234,6 @@ int FFmpegDecoder::DecodeVideo()
             if (nRet == 0)
             {
                 nRet = avcodec_receive_frame(m_pVideoCodecCtx, pFrameYUV);
-
                 nFrameNumber++;
                 std::cout << "Read FrameNumber: " << nFrameNumber << std::endl;
 

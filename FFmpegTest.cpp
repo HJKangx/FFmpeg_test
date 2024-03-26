@@ -26,35 +26,33 @@ int FFmpegTest::WriteSizeWAVHeader(std::ofstream& ofsWAVFile)
     ofsWAVFile.seekp(40);
     ofsWAVFile.write(reinterpret_cast<const char*>(&nDataChunkSize), 4);
 
-    ofsWAVFile.close();
 
     return nRet;
 }
 
-int FFmpegTest::StartEncoding()
+int FFmpegTest::StartEncoding(std::ofstream& ofsOutputFile)
 {
     int nRet = 0;
     int nFrameNumber = 0;
-    const std::string strOutputEncoderUrl = "TestEncoder.h264";
-    std::ofstream ofsH264File(strOutputEncoderUrl);
+    
 
     while(true)
     {
         nRet = m_pFFmpegDecoder->DecodeVideoOneFrame(*m_pFrameData);
-        if (nRet == -10)
+        if (nRet == -10 || nFrameNumber == 1000)
         {
-            m_pFFmpegEncoder->FlushEncodeVideo(*m_pFrameData, ofsH264File);
+            m_pFFmpegEncoder->FlushEncodeVideo(*m_pFrameData, ofsOutputFile);
             std::cout << "Decoder & Encoder End.. nFrameNumber: " << nFrameNumber << std::endl;
-            ofsH264File.close();
+            ofsOutputFile.close();
             break;
         }
-        nRet = m_pFFmpegEncoder->EncodeVideo(*m_pFrameData, ofsH264File);
+        nRet = m_pFFmpegEncoder->EncodeVideo(*m_pFrameData, ofsOutputFile);
 
         nFrameNumber++;
         std::cout << "main Count: " << nFrameNumber << std::endl;
 
     }
-    ofsH264File.close();
+    ofsOutputFile.close();
     return nRet;
 }
 
@@ -95,18 +93,22 @@ int FFmpegTest::EncoingTest(const std::string& strInputUrl)
 {
     int nRet = 0;
     nRet = m_pFFmpegDecoder->OpenFile(strInputUrl);
-    
+    // const std::string strOutputEncoderUrl = "TestEncoder.h264";
+    const std::string strOutputEncoderUrl2 = "TestEncoder2.mp4";
+    const std::string strOutputEncoderUrl = "TestEncoder.mp4";
+    std::ofstream ofsOutputFile(strOutputEncoderUrl2);
+
     switch (nRet)
     {
     case 0:
         nRet = m_pFFmpegDecoder->OpenVideo();
-        nRet = m_pFFmpegEncoder->SetEncoder();
-        nRet= StartEncoding();
+        nRet = m_pFFmpegEncoder->SetEncoder(strOutputEncoderUrl);
+        nRet= StartEncoding(ofsOutputFile);
         break;
     case -16:
         nRet = m_pFFmpegDecoder->OpenVideo();
-        nRet = m_pFFmpegEncoder->SetEncoder();
-        nRet = StartEncoding();
+        nRet = m_pFFmpegEncoder->SetEncoder(strOutputEncoderUrl);
+        nRet = StartEncoding(ofsOutputFile);
 
         break;
     default:
@@ -116,12 +118,13 @@ int FFmpegTest::EncoingTest(const std::string& strInputUrl)
     return nRet;
 }
 
-int main(int argc, char *argv[])
+int main()
+// int main(int argc, char *argv[])
 {
     float fProcessDuration = 0.f;
-    const std::string strInputUrl = "./TestVideo/terra.mp4";
+    // const std::string strInputUrl = "./TestVideo/terra.mp4";
     // const std::string strInputUrl = "./TestVideo/output_mpeg.mp4";
-    // const std::string strInputUrl = "./TestVideo/output_264.mp4";
+    const std::string strInputUrl = "/root/FFmpeg_test/TestVideo/output_264.mp4";
     
     FFmpegTest FFmpegTestObj;
     std::clock_t clockStartTime = std::clock();
