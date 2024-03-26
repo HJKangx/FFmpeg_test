@@ -12,6 +12,8 @@ public:
 
     int DecoingTest(const std::string& strInputUrl);
     int EncoingTest(const std::string& strInputUrl);
+
+private:
     int StartEncoding(std::ofstream& ofsOutputFile);
     int WriteSizeWAVHeader(std::ofstream& ofsWAVFile);
     

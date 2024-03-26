@@ -29,7 +29,6 @@ int FFmpegEncoder::SetEncoder(const std::string& ofsOutputFilePath)
     m_pEncoderCodecCtx->width = 1280;  
     m_pEncoderCodecCtx->height = 720;
     m_pEncoderCodecCtx->time_base = (AVRational){1, 30};
-    m_pEncoderCodecCtx->framerate = (AVRational){30, 1};
     m_pEncoderCodecCtx->gop_size = 10;
     m_pEncoderCodecCtx->max_b_frames = 1;
     m_pEncoderCodecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
@@ -201,9 +200,11 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsOutp
 int FFmpegEncoder::CloseEncoder()
 {
     int nRet = 0;
+
     av_write_trailer(m_pOutputFormatCtx);
     avio_close(m_pOutputFormatCtx->pb);
-    avformat_close_input(&m_pOutputFormatCtx);
+    avformat_free_context(m_pOutputFormatCtx);
+
     avcodec_close(m_pEncoderCodecCtx);
 
     return nRet;

@@ -39,10 +39,11 @@ int FFmpegTest::StartEncoding(std::ofstream& ofsOutputFile)
     while(true)
     {
         nRet = m_pFFmpegDecoder->DecodeVideoOneFrame(*m_pFrameData);
-        if (nRet == -10 || nFrameNumber == 1000)
+        if (nRet == -10 || nFrameNumber == 100)
         {
             m_pFFmpegEncoder->FlushEncodeVideo(*m_pFrameData, ofsOutputFile);
             std::cout << "Decoder & Encoder End.. nFrameNumber: " << nFrameNumber << std::endl;
+            // m_pFFmpegEncoder->CloseEncoder();
             ofsOutputFile.close();
             break;
         }
@@ -104,11 +105,13 @@ int FFmpegTest::EncoingTest(const std::string& strInputUrl)
         nRet = m_pFFmpegDecoder->OpenVideo();
         nRet = m_pFFmpegEncoder->SetEncoder(strOutputEncoderUrl);
         nRet= StartEncoding(ofsOutputFile);
+
         break;
     case -16:
         nRet = m_pFFmpegDecoder->OpenVideo();
         nRet = m_pFFmpegEncoder->SetEncoder(strOutputEncoderUrl);
         nRet = StartEncoding(ofsOutputFile);
+
 
         break;
     default:

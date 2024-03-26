@@ -27,9 +27,10 @@ public:
     int SetEncoder(const std::string&  ofsOutputFilePath);
     int EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsOutputFile);
     int FlushEncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsOutputFile);
+    int CloseEncoder();
+    
     
 private:
-    int CloseEncoder();
 
 private:
     AVFormatContext* m_pOutputFormatCtx;
