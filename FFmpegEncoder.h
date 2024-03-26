@@ -24,17 +24,19 @@ public:
     FFmpegEncoder();
 
     ~FFmpegEncoder();
-    int SetEncoder();
-    int EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264File);
-    int FlushEncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264File);
+    int SetEncoder(const std::string&  ofsOutputFilePath);
+    int EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsOutputFile);
+    int FlushEncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsOutputFile);
     
 private:
     int CloseEncoder();
 
 private:
-    AVFormatContext* m_pFormatCtx;
+    AVFormatContext* m_pOutputFormatCtx;
+    AVOutputFormat* m_pOutputFormat;
     AVCodecContext* m_pEncoderCodecCtx;
     AVCodec* m_pEncoderCodec;
+    AVStream* videoStream;
 
     int m_nEncoderCount;
 };

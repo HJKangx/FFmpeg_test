@@ -2,23 +2,29 @@
 
 FFmpegEncoder::FFmpegEncoder()
 {
-    m_pFormatCtx = nullptr;
+    m_pOutputFormatCtx = nullptr;
+    m_pOutputFormat = nullptr;
     m_pEncoderCodecCtx = nullptr;
     m_pEncoderCodec = nullptr;
+    videoStream = nullptr;
     m_nEncoderCount = 0;
 }
 
 FFmpegEncoder::~FFmpegEncoder()
 {
+    CloseEncoder();
     std::cout << "End FFmpegEncoder" << std::endl;
 }
 
-int FFmpegEncoder::SetEncoder()
+int FFmpegEncoder::SetEncoder(const std::string& ofsOutputFilePath)
 {
     int nRet = 0;
+    m_pOutputFormat = av_guess_format(NULL, ofsOutputFilePath.c_str(), NULL);
+
     m_pEncoderCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
     m_pEncoderCodecCtx = avcodec_alloc_context3(m_pEncoderCodec);
 
+    // m_pEncoderCodecCtx->bit_rate = 400000;
     m_pEncoderCodecCtx->bit_rate = 1200000;
     m_pEncoderCodecCtx->width = 1280;  
     m_pEncoderCodecCtx->height = 720;
@@ -28,11 +34,7 @@ int FFmpegEncoder::SetEncoder()
     m_pEncoderCodecCtx->max_b_frames = 1;
     m_pEncoderCodecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
 
-    if (m_pEncoderCodec->id == AV_CODEC_ID_H264)
-    {
-        av_opt_set(m_pEncoderCodecCtx->priv_data, "preset", "slow", 0);
-    }
-    nRet = avcodec_open2(m_pEncoderCodecCtx, m_pEncoderCodec, NULL);
+    nRet = avcodec_open2(m_pEncoderCodecCtx, m_pEncoderCodec, nullptr);
     
     if (nRet < 0)
     {
@@ -40,11 +42,63 @@ int FFmpegEncoder::SetEncoder()
         std::cout << "Fail avcodec_open2 Encoder" << std::endl;        
         return nRet;
     } 
+    else
+    {
+        // nRet = avformat_alloc_output_context2(&m_pOutputFormatCtx, nullptr, nullptr, ofsOutputFilePath.c_str());
+        m_pOutputFormatCtx = avformat_alloc_context();
+        m_pOutputFormatCtx->oformat = m_pOutputFormat;        
+        videoStream = avformat_new_stream(m_pOutputFormatCtx, m_pEncoderCodec);
 
+
+		// uint8_t* pVideoEncodeBuffer = (uint8_t *)av_malloc(10000000);
+
+        if (videoStream != nullptr && m_pEncoderCodecCtx != nullptr)
+        {
+
+            videoStream->codecpar->codec_id = m_pEncoderCodec->id;
+            videoStream->codecpar->codec_tag = 0;
+            videoStream->codecpar->width = m_pEncoderCodecCtx->width;
+            videoStream->codecpar->height = m_pEncoderCodecCtx->height;
+            videoStream->codecpar->format = m_pEncoderCodecCtx->pix_fmt;
+            videoStream->time_base = m_pEncoderCodecCtx->time_base;
+            
+            nRet = avcodec_parameters_from_context(videoStream->codecpar, m_pEncoderCodecCtx);
+
+            if (nRet >= 0)
+            {
+                nRet = avio_open(&m_pOutputFormatCtx->pb, ofsOutputFilePath.c_str(), AVIO_FLAG_WRITE);
+                if (nRet >= 0)
+                {
+                    nRet = avformat_write_header(m_pOutputFormatCtx, nullptr);
+                    if (nRet < 0)
+                    {
+                        std::cout << "ERROR_ENCODER_WRITE_HEADER" <<std::endl;
+                        nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_WRITE_HEADER);
+                        return nRet; 
+                    }
+                }
+                else
+                {
+                nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_FAIL_OPEN_AVIO);
+                return nRet; 
+                }
+            }
+            else
+            {
+                nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_FILL_PARAMETER);
+                return nRet; 
+            }
+        }
+        else if (videoStream == nullptr)
+        {
+            nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_ADD_STREAM);
+            return nRet;   
+        }
+    }   
     return nRet;
 }
 
-int FFmpegEncoder::FlushEncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264File)
+int FFmpegEncoder::FlushEncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsOutputFile)
 {
     int nRet = 0;
     AVPacket* pPacket = av_packet_alloc();
@@ -62,7 +116,19 @@ int FFmpegEncoder::FlushEncodeVideo(const AVFrame& pFrameData, std::ofstream& of
         }
         else if (nRet >= 0)
         {
-            ofsH264File.write((const char*)pPacket->data, pPacket->size);
+            pPacket->pts = pFrameData.pts;
+            ofsOutputFile.write((const char*)pPacket->data, pPacket->size);
+            // nRet = av_interleaved_write_frame(m_pOutputFormatCtx, pPacket);
+            nRet = av_write_frame(m_pOutputFormatCtx, pPacket);
+
+            if (nRet < 0)
+            {
+                nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_WRITE_PACKET);
+                std::cout << "Fail WRITE PACKET" << m_nEncoderCount << std::endl;
+                return nRet;
+            }
+            m_nEncoderCount++;
+            std::cout << " WRITE" << m_nEncoderCount << std::endl;
             av_packet_unref(pPacket);
             continue;
         }
@@ -72,7 +138,7 @@ int FFmpegEncoder::FlushEncodeVideo(const AVFrame& pFrameData, std::ofstream& of
     return nRet;
 }
 
-int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264File)
+int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsOutputFile)
 {
     int nRet = 0;
     AVPacket* pPacket = av_packet_alloc();
@@ -96,11 +162,20 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264
 
             if (nRet >= 0)
             {
+                pPacket->pts = pFrameData.pts;
+                ofsOutputFile.write((const char*)pPacket->data, pPacket->size);
+                // nRet = av_interleaved_write_frame(m_pOutputFormatCtx, pPacket);
+                nRet = av_write_frame(m_pOutputFormatCtx, pPacket);
+
+
+                if (nRet < 0)
+                {
+                    nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_WRITE_PACKET);
+                    std::cout << "Fail WRITE PACKET" << m_nEncoderCount << std::endl;
+                    return nRet;
+                }
                 m_nEncoderCount++;
-                pPacket->pts = av_rescale_q(m_nEncoderCount, (AVRational){1, 30}, m_pEncoderCodecCtx->time_base);
-                // pPacket->pts = m_nEncoderCount * m_pEncoderCodecCtx->time_base.num / m_pEncoderCodecCtx->time_base.den;
-                ofsH264File.write((const char*)pPacket->data, pPacket->size);
-                // std::cout << "pPacket->pts: " << pPacket->pts << "pPacket->dts" << pPacket->dts<< std::endl;
+                std::cout << " WRITE" << m_nEncoderCount << std::endl;
 
                 av_packet_unref(pPacket);
                 return nRet;
@@ -126,8 +201,9 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsH264
 int FFmpegEncoder::CloseEncoder()
 {
     int nRet = 0;
-
-    avformat_close_input(&m_pFormatCtx);
+    av_write_trailer(m_pOutputFormatCtx);
+    avio_close(m_pOutputFormatCtx->pb);
+    avformat_close_input(&m_pOutputFormatCtx);
     avcodec_close(m_pEncoderCodecCtx);
 
     return nRet;
