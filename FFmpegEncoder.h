@@ -24,9 +24,9 @@ public:
     FFmpegEncoder();
 
     ~FFmpegEncoder();
-    int SetEncoder(const std::string&  ofsOutputFilePath);
-    int EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsOutputFile);
-    int FlushEncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsOutputFile);
+    int SetEncoder(const std::string& ofsOutputFilePath);
+    int EncodeVideo(const AVFrame& pFrameData);
+    int FlushEncodeVideo(const AVFrame& pFrameData);
     int CloseEncoder();
     
     

@@ -14,7 +14,7 @@ public:
     int EncoingTest(const std::string& strInputUrl);
 
 private:
-    int StartEncoding(std::ofstream& ofsOutputFile);
+    int StartEncoding();
     int WriteSizeWAVHeader(std::ofstream& ofsWAVFile);
     
     std::shared_ptr<FFmpegDecoder> m_pFFmpegDecoder; 

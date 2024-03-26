@@ -97,7 +97,7 @@ int FFmpegEncoder::SetEncoder(const std::string& ofsOutputFilePath)
     return nRet;
 }
 
-int FFmpegEncoder::FlushEncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsOutputFile)
+int FFmpegEncoder::FlushEncodeVideo(const AVFrame& pFrameData)
 {
     int nRet = 0;
     AVPacket* pPacket = av_packet_alloc();
@@ -115,10 +115,8 @@ int FFmpegEncoder::FlushEncodeVideo(const AVFrame& pFrameData, std::ofstream& of
         }
         else if (nRet >= 0)
         {
-            pPacket->pts = pFrameData.pts;
-            ofsOutputFile.write((const char*)pPacket->data, pPacket->size);
-            // nRet = av_interleaved_write_frame(m_pOutputFormatCtx, pPacket);
-            nRet = av_write_frame(m_pOutputFormatCtx, pPacket);
+            // ofsOutputFile.write((const char*)pPacket->data, pPacket->size);
+            nRet = av_interleaved_write_frame(m_pOutputFormatCtx, pPacket);
 
             if (nRet < 0)
             {
@@ -137,7 +135,7 @@ int FFmpegEncoder::FlushEncodeVideo(const AVFrame& pFrameData, std::ofstream& of
     return nRet;
 }
 
-int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsOutputFile)
+int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData)
 {
     int nRet = 0;
     AVPacket* pPacket = av_packet_alloc();
@@ -151,7 +149,7 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsOutp
             nRet = avcodec_receive_packet(m_pEncoderCodecCtx, pPacket);
             if (nRet == AVERROR(EAGAIN))
             {
-                continue;
+                return nRet;
             }
             if (nRet == AVERROR_EOF)
             {
@@ -161,11 +159,8 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData, std::ofstream& ofsOutp
 
             if (nRet >= 0)
             {
-                pPacket->pts = pFrameData.pts;
-                ofsOutputFile.write((const char*)pPacket->data, pPacket->size);
-                // nRet = av_interleaved_write_frame(m_pOutputFormatCtx, pPacket);
-                nRet = av_write_frame(m_pOutputFormatCtx, pPacket);
-
+                // ofsOutputFile.write((const char*)pPacket->data, pPacket->size);
+                nRet = av_interleaved_write_frame(m_pOutputFormatCtx, pPacket);
 
                 if (nRet < 0)
                 {

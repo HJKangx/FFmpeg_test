@@ -30,7 +30,7 @@ int FFmpegTest::WriteSizeWAVHeader(std::ofstream& ofsWAVFile)
     return nRet;
 }
 
-int FFmpegTest::StartEncoding(std::ofstream& ofsOutputFile)
+int FFmpegTest::StartEncoding()
 {
     int nRet = 0;
     int nFrameNumber = 0;
@@ -39,21 +39,18 @@ int FFmpegTest::StartEncoding(std::ofstream& ofsOutputFile)
     while(true)
     {
         nRet = m_pFFmpegDecoder->DecodeVideoOneFrame(*m_pFrameData);
-        if (nRet == -10 || nFrameNumber == 100)
+        if (nRet == -10 || nFrameNumber == 500)
         {
-            m_pFFmpegEncoder->FlushEncodeVideo(*m_pFrameData, ofsOutputFile);
+            m_pFFmpegEncoder->FlushEncodeVideo(*m_pFrameData);
             std::cout << "Decoder & Encoder End.. nFrameNumber: " << nFrameNumber << std::endl;
-            // m_pFFmpegEncoder->CloseEncoder();
-            ofsOutputFile.close();
             break;
         }
-        nRet = m_pFFmpegEncoder->EncodeVideo(*m_pFrameData, ofsOutputFile);
+        nRet = m_pFFmpegEncoder->EncodeVideo(*m_pFrameData);
 
         nFrameNumber++;
         std::cout << "main Count: " << nFrameNumber << std::endl;
 
     }
-    ofsOutputFile.close();
     return nRet;
 }
 
@@ -95,22 +92,20 @@ int FFmpegTest::EncoingTest(const std::string& strInputUrl)
     int nRet = 0;
     nRet = m_pFFmpegDecoder->OpenFile(strInputUrl);
     // const std::string strOutputEncoderUrl = "TestEncoder.h264";
-    const std::string strOutputEncoderUrl2 = "TestEncoder2.mp4";
-    const std::string strOutputEncoderUrl = "TestEncoder.mp4";
-    std::ofstream ofsOutputFile(strOutputEncoderUrl2);
+    const std::string strOutputEncoderUrl = "TestEncoder3.mp4";
 
     switch (nRet)
     {
     case 0:
         nRet = m_pFFmpegDecoder->OpenVideo();
         nRet = m_pFFmpegEncoder->SetEncoder(strOutputEncoderUrl);
-        nRet= StartEncoding(ofsOutputFile);
+        nRet= StartEncoding();
 
         break;
     case -16:
         nRet = m_pFFmpegDecoder->OpenVideo();
         nRet = m_pFFmpegEncoder->SetEncoder(strOutputEncoderUrl);
-        nRet = StartEncoding(ofsOutputFile);
+        nRet = StartEncoding();
 
 
         break;
