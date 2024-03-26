@@ -23,6 +23,7 @@ FFmpegDecoder::~FFmpegDecoder()
 
 int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
 {
+    // av_dump_format(m_pFormatCtx, 0, 0, 0);
     int nRet = 0;
     int nInputWidth = 0;
     int nInputHeight = 0;
@@ -35,17 +36,18 @@ int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
 
     if (avformat_open_input(&m_pFormatCtx, strInputUrl.c_str(), nullptr, nullptr) < 0)
 	{
-        nRet = -1;
         std::cerr << "Can't Open Stream & Read Header in " << strInputUrl << std::endl;
+        nRet = static_cast<int>(FD_RESULT::WARNING_FAIL_OPEN_INPUT);
+
 		return nRet;
 	}
     if (avformat_find_stream_info(m_pFormatCtx, nullptr) < 0)
 	{   
-        nRet = -2;
+        nRet = static_cast<int>(FD_RESULT::WARNING_FAIL_READ_PACKET);
         std::cerr << "Can't Read Packets of " << strInputUrl << std::endl;
 		return nRet;
 	}
-    // av_dump_format(m_pFormatCtx, 0, 0, 0);
+
     for(int i = 0; i < m_pFormatCtx->nb_streams; i++)
     {
         if(m_pFormatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
@@ -114,7 +116,7 @@ int FFmpegDecoder::OpenVideo()
 
             if (nRet < 0)
             {
-                nRet = -1;
+                nRet = static_cast<int>(FD_RESULT::ERROR_FAIL_OPEN_CODEC);
                 std::cout << "Fail avcodec_open2 Video" << std::endl;        
                 return nRet;
             } 
@@ -144,7 +146,7 @@ int FFmpegDecoder::OpenAudio()
 
             if (nRet != 0)
             {
-                nRet = -1;
+                nRet = static_cast<int>(FD_RESULT::ERROR_FAIL_OPEN_CODEC);\
                 std::cout << "Fail avcodec_open2 Audio" << std::endl;        
                 return nRet;
             } 
@@ -173,7 +175,8 @@ int FFmpegDecoder::DecodeVideoOneFrame(AVFrame& pOutFrame)
             }
             else if (nRet == AVERROR_EOF)
             {
-                return -10;
+                nRet = static_cast<int>(FD_RESULT::WARNING_DECODER_END_FILE);
+                return nRet;
             }
             return nRet;
         }
@@ -184,17 +187,18 @@ int FFmpegDecoder::DecodeVideoOneFrame(AVFrame& pOutFrame)
 
             if (nRet == 0)
             {
-                
                 nRet = avcodec_receive_frame(m_pVideoCodecCtx, &pOutFrame);
 
                 if (nRet == 0)
                 {
-                    return nRet;
+                    break;
                 }
             }
             else
             {
-                std::cerr << "avcodec_send_packet - ErrorCode:" << nRet << std::endl;
+                nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_FAIL_SEND_FRAME);
+                std::cerr << "Fail avcodec_send_packet Decoder" << std::endl;
+                return nRet;
             }
         }
     }
@@ -217,25 +221,27 @@ int FFmpegDecoder::DecodeVideo()
 
         if (nRet < 0)
         {
-            // AVERROR(EAGAIN) -541478725
             if (nRet == AVERROR(EAGAIN))
             {
                 continue;
+            }
+            else if (nRet == AVERROR_EOF)
+            {
+                nRet = static_cast<int>(FD_RESULT::WARNING_DECODER_END_FILE);
+                return nRet;
             }
             return nRet;
         }
         if(pPacket->stream_index == m_nVideoStreamIndex)
         {
-            // nPts = (pPacket->dts != AV_NOPTS_VALUE) ? pPacket->dts : 0;
-            // pPacket->pts = nPts;
             nRet = avcodec_send_packet(m_pVideoCodecCtx, pPacket);
             av_packet_unref(pPacket);
 
             if (nRet == 0)
             {
                 nRet = avcodec_receive_frame(m_pVideoCodecCtx, pFrameYUV);
-                nFrameNumber++;
-                std::cout << "Read FrameNumber: " << nFrameNumber << std::endl;
+                // nFrameNumber++;
+                // std::cout << "Read FrameNumber: " << nFrameNumber << std::endl;
 
                 if (nRet == 0)
                 {
@@ -247,7 +253,9 @@ int FFmpegDecoder::DecodeVideo()
             }
             else
             {
-                std::cerr << "avcodec_send_packet - ErrorCode:" << nRet << std::endl;
+                nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_FAIL_SEND_FRAME);
+                std::cerr << "Fail avcodec_send_packet Decoder" << std::endl;
+                return nRet;
             }
         }
     }
@@ -258,7 +266,6 @@ int FFmpegDecoder::DecodeAudio(std::ofstream& ofsWAVFile)
 {
     int nRet = 0;
     int nFrameNumber  = 0;
-    
     AVFrame* pFrameAudio = av_frame_alloc();
     AVPacket* pPacket = av_packet_alloc();
 
@@ -270,17 +277,21 @@ int FFmpegDecoder::DecodeAudio(std::ofstream& ofsWAVFile)
 
         if (nRet < 0)
         {
-            // AVERROR(EAGAIN) -541478725
+            
             if (nRet == AVERROR(EAGAIN))
             {
-                continue;                
+                continue;
+            }
+            else if (nRet == AVERROR_EOF)
+            {
+                nRet = static_cast<int>(FD_RESULT::WARNING_DECODER_END_FILE);
+                return nRet;
             }
             return nRet;
         }
 
         if(pPacket->stream_index == m_nAudioStreamIndex)
         {
-
             nRet = avcodec_send_packet(m_pAudioCodecCtx, pPacket);
 
             av_packet_unref(pPacket);
@@ -327,8 +338,6 @@ int FFmpegDecoder::ConvertRGBAVframe(AVFrame& pFrameYUV, AVFrame& pOutFrame)
     sws_scale(pSwsCtx, (const uint8_t* const*)pFrameYUV.data, pFrameYUV.linesize, 0, 
                         nInputHeight, pOutFrame.data, pOutFrame.linesize);
 
-    // pSwsCtx allocate / pOutbuffer allocate 체크
-
     sws_freeContext(pSwsCtx);
     free(pOutbuffer);
 
@@ -338,7 +347,7 @@ int FFmpegDecoder::ConvertRGBAVframe(AVFrame& pFrameYUV, AVFrame& pOutFrame)
 int FFmpegDecoder::SaveBMP(AVFrame& pFrameRGB, int nWidth, int nHeight)
 {
     int nFileSize = 54 + 3 * nWidth * nHeight;
-
+    int nRet = 0;
     std::ofstream ofsBMPFile("FFmpeg_test.bmp");
 
     if (ofsBMPFile.is_open())
@@ -375,10 +384,9 @@ int FFmpegDecoder::SaveBMP(AVFrame& pFrameRGB, int nWidth, int nHeight)
         std::cerr << "Failed to open file for writing" << std::endl;
 
     ofsBMPFile.close();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    std::cout << "Save File" << std::endl;
+    // std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
-    return 0; //
+    return nRet;
 }
 
 int FFmpegDecoder::GetAudioBitDepth(short& nBitDepth)
@@ -420,7 +428,6 @@ int FFmpegDecoder::MakeWAVHeader(std::ofstream& ofsWAVFile)
     short sBitsPerSample = 0;
     short sChannels = m_pAudioCodecCtx->channels;
     GetAudioBitDepth(sBitsPerSample);
-
     int byteRate = nSampleRate * sChannels * sBitsPerSample / 8;
     short blockAlign = sChannels * sBitsPerSample / 8; 
 
@@ -440,7 +447,7 @@ int FFmpegDecoder::MakeWAVHeader(std::ofstream& ofsWAVFile)
     ofsWAVFile.write(reinterpret_cast<const char*>(&sBitsPerSample), 2);
 
     ofsWAVFile.write("data", 4);
-    ofsWAVFile.write(reinterpret_cast<const char*>(&nSampleRate), 4); //
+    ofsWAVFile.write(reinterpret_cast<const char*>(&nSampleRate), 4);
 
     return nRet;
 }
@@ -459,10 +466,8 @@ int FFmpegDecoder::SaveWAV(AVFrame* pFrameAudio, std::ofstream& ofsWAVFile)
         }
     }
     
-    // ofsWAVFile.close();
     return nRet;
 }
-
 
 int FFmpegDecoder::CloseDecoder()
 {
@@ -471,6 +476,7 @@ int FFmpegDecoder::CloseDecoder()
     avformat_close_input(&m_pFormatCtx);
     avcodec_close(m_pVideoCodecCtx);
     avcodec_close(m_pAudioCodecCtx);
-    // m_pVideoCodec = nullptr; close 추가
+    // av_free(m_pVideoCodec); error
+
     return nRet;
 }

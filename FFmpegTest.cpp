@@ -38,8 +38,10 @@ int FFmpegTest::StartEncoding()
 
     while(true)
     {
+
+        
         nRet = m_pFFmpegDecoder->DecodeVideoOneFrame(*m_pFrameData);
-        if (nRet == -10 || nFrameNumber == 500)
+        if (nRet == static_cast<int>(FD_RESULT::WARNING_DECODER_END_FILE) || nFrameNumber == 500)
         {
             m_pFFmpegEncoder->FlushEncodeVideo(*m_pFrameData);
             std::cout << "Decoder & Encoder End.. nFrameNumber: " << nFrameNumber << std::endl;
@@ -62,23 +64,27 @@ int FFmpegTest::DecoingTest(const std::string& strInputUrl)
 
     nRet = m_pFFmpegDecoder->OpenFile(strInputUrl);
 
+    if(nRet == static_cast<int>(FD_RESULT::WARNING_FAIL_OPEN_INPUT) || nRet == static_cast<int>(FD_RESULT::WARNING_FAIL_READ_PACKET))
+        return nRet;        
+
     switch (nRet)
     {
-    case 0:
+    case static_cast<int>(FD_RESULT::OK):
         nRet = m_pFFmpegDecoder->OpenVideo();
         nRet = m_pFFmpegDecoder->OpenAudio();
         nRet = m_pFFmpegDecoder->DecodeVideo();
         nRet = m_pFFmpegDecoder->DecodeAudio(ofsWAVFile);
         break;
-    case -17:
+    case static_cast<int>(FD_RESULT::WARNING_NO_VIEDO_STREAM):
         nRet = m_pFFmpegDecoder->OpenAudio();
         nRet = m_pFFmpegDecoder->DecodeAudio(ofsWAVFile);
         break;
-    case -16:
+    case static_cast<int>(FD_RESULT::WARNING_NO_AUDIO_STREAM):
         nRet = m_pFFmpegDecoder->OpenVideo();
         nRet = m_pFFmpegDecoder->DecodeVideo();
         break;
     default:
+        std::cout << "nRet Value not in FD_RESULT:"<< nRet << std::endl;
         break;
     }
 
@@ -92,17 +98,17 @@ int FFmpegTest::EncoingTest(const std::string& strInputUrl)
     int nRet = 0;
     nRet = m_pFFmpegDecoder->OpenFile(strInputUrl);
     // const std::string strOutputEncoderUrl = "TestEncoder.h264";
-    const std::string strOutputEncoderUrl = "TestEncoder3.mp4";
+    const std::string strOutputEncoderUrl = "TestEncoder4.mp4";
 
     switch (nRet)
     {
-    case 0:
+    case static_cast<int>(FD_RESULT::OK):
         nRet = m_pFFmpegDecoder->OpenVideo();
         nRet = m_pFFmpegEncoder->SetEncoder(strOutputEncoderUrl);
         nRet= StartEncoding();
 
         break;
-    case -16:
+    case static_cast<int>(FD_RESULT::WARNING_NO_AUDIO_STREAM):
         nRet = m_pFFmpegDecoder->OpenVideo();
         nRet = m_pFFmpegEncoder->SetEncoder(strOutputEncoderUrl);
         nRet = StartEncoding();
