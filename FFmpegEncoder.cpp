@@ -6,7 +6,7 @@ FFmpegEncoder::FFmpegEncoder()
     m_pOutputFormat = nullptr;
     m_pEncoderCodecCtx = nullptr;
     m_pEncoderCodec = nullptr;
-    videoStream = nullptr;
+    m_pVideoStream = nullptr;
     m_nEncoderCount = 0;
 }
 
@@ -20,11 +20,9 @@ int FFmpegEncoder::SetEncoder(const std::string& ofsOutputFilePath)
 {
     int nRet = 0;
     m_pOutputFormat = av_guess_format(NULL, ofsOutputFilePath.c_str(), NULL);
-
     m_pEncoderCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
     m_pEncoderCodecCtx = avcodec_alloc_context3(m_pEncoderCodec);
 
-    // m_pEncoderCodecCtx->bit_rate = 400000;
     m_pEncoderCodecCtx->bit_rate = 1200000;
     m_pEncoderCodecCtx->width = 1280;  
     m_pEncoderCodecCtx->height = 720;
@@ -37,7 +35,7 @@ int FFmpegEncoder::SetEncoder(const std::string& ofsOutputFilePath)
     
     if (nRet < 0)
     {
-        nRet = -1;
+        nRet = static_cast<int>(FD_RESULT::ERROR_FAIL_OPEN_CODEC);
         std::cout << "Fail avcodec_open2 Encoder" << std::endl;        
         return nRet;
     } 
@@ -46,22 +44,12 @@ int FFmpegEncoder::SetEncoder(const std::string& ofsOutputFilePath)
         // nRet = avformat_alloc_output_context2(&m_pOutputFormatCtx, nullptr, nullptr, ofsOutputFilePath.c_str());
         m_pOutputFormatCtx = avformat_alloc_context();
         m_pOutputFormatCtx->oformat = m_pOutputFormat;        
-        videoStream = avformat_new_stream(m_pOutputFormatCtx, m_pEncoderCodec);
+        m_pVideoStream = avformat_new_stream(m_pOutputFormatCtx, m_pEncoderCodec);
 
-
-		// uint8_t* pVideoEncodeBuffer = (uint8_t *)av_malloc(10000000);
-
-        if (videoStream != nullptr && m_pEncoderCodecCtx != nullptr)
+        if (m_pVideoStream != nullptr && m_pEncoderCodecCtx != nullptr)
         {
-
-            videoStream->codecpar->codec_id = m_pEncoderCodec->id;
-            videoStream->codecpar->codec_tag = 0;
-            videoStream->codecpar->width = m_pEncoderCodecCtx->width;
-            videoStream->codecpar->height = m_pEncoderCodecCtx->height;
-            videoStream->codecpar->format = m_pEncoderCodecCtx->pix_fmt;
-            videoStream->time_base = m_pEncoderCodecCtx->time_base;
-            
-            nRet = avcodec_parameters_from_context(videoStream->codecpar, m_pEncoderCodecCtx);
+            m_pVideoStream->time_base = m_pEncoderCodecCtx->time_base;
+            nRet = avcodec_parameters_from_context(m_pVideoStream->codecpar, m_pEncoderCodecCtx);
 
             if (nRet >= 0)
             {
@@ -88,12 +76,13 @@ int FFmpegEncoder::SetEncoder(const std::string& ofsOutputFilePath)
                 return nRet; 
             }
         }
-        else if (videoStream == nullptr)
+        else if (m_pVideoStream == nullptr)
         {
             nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_ADD_STREAM);
             return nRet;   
         }
     }   
+
     return nRet;
 }
 
@@ -153,7 +142,7 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData)
             }
             if (nRet == AVERROR_EOF)
             {
-                nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_END_FILE);
+                nRet = static_cast<int>(FD_RESULT::WARNING_ENCODER_END_FILE);
                 return nRet;
             }
 

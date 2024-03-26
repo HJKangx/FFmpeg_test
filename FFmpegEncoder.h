@@ -37,7 +37,7 @@ private:
     AVOutputFormat* m_pOutputFormat;
     AVCodecContext* m_pEncoderCodecCtx;
     AVCodec* m_pEncoderCodec;
-    AVStream* videoStream;
+    AVStream* m_pVideoStream;
 
     int m_nEncoderCount;
 };
