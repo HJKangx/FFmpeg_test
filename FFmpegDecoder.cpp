@@ -474,8 +474,8 @@ int FFmpegDecoder::CloseDecoder()
     int nRet = 0;
 
     avformat_close_input(&m_pFormatCtx);
-    avcodec_close(m_pVideoCodecCtx);
-    avcodec_close(m_pAudioCodecCtx);
+    avcodec_free_context(&m_pVideoCodecCtx);
+    avcodec_free_context(&m_pAudioCodecCtx);
     // av_free(m_pVideoCodec); error
 
     return nRet;

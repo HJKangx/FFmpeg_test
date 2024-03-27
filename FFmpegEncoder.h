@@ -34,7 +34,6 @@ private:
 
 private:
     AVFormatContext* m_pOutputFormatCtx;
-    AVOutputFormat* m_pOutputFormat;
     AVCodecContext* m_pEncoderCodecCtx;
     AVCodec* m_pEncoderCodec;
     AVStream* m_pVideoStream;

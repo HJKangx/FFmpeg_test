@@ -19,7 +19,6 @@ FFmpegEncoder::~FFmpegEncoder()
 int FFmpegEncoder::SetEncoder(const std::string& ofsOutputFilePath)
 {
     int nRet = 0;
-    m_pOutputFormat = av_guess_format(NULL, ofsOutputFilePath.c_str(), NULL);
     m_pEncoderCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
     m_pEncoderCodecCtx = avcodec_alloc_context3(m_pEncoderCodec);
 
@@ -28,7 +27,7 @@ int FFmpegEncoder::SetEncoder(const std::string& ofsOutputFilePath)
     m_pEncoderCodecCtx->height = 720;
     m_pEncoderCodecCtx->time_base = (AVRational){1, 30};
     m_pEncoderCodecCtx->gop_size = 10;
-    m_pEncoderCodecCtx->max_b_frames = 1;
+    m_pEncoderCodecCtx->max_b_frames = 10;
     m_pEncoderCodecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
 
     nRet = avcodec_open2(m_pEncoderCodecCtx, m_pEncoderCodec, nullptr);
@@ -41,9 +40,7 @@ int FFmpegEncoder::SetEncoder(const std::string& ofsOutputFilePath)
     } 
     else
     {
-        // nRet = avformat_alloc_output_context2(&m_pOutputFormatCtx, nullptr, nullptr, ofsOutputFilePath.c_str());
-        m_pOutputFormatCtx = avformat_alloc_context();
-        m_pOutputFormatCtx->oformat = m_pOutputFormat;        
+        nRet = avformat_alloc_output_context2(&m_pOutputFormatCtx, nullptr, nullptr, ofsOutputFilePath.c_str());
         m_pVideoStream = avformat_new_stream(m_pOutputFormatCtx, m_pEncoderCodec);
 
         if (m_pVideoStream != nullptr && m_pEncoderCodecCtx != nullptr)
@@ -187,9 +184,7 @@ int FFmpegEncoder::CloseEncoder()
 
     av_write_trailer(m_pOutputFormatCtx);
     avio_close(m_pOutputFormatCtx->pb);
-    avformat_free_context(m_pOutputFormatCtx);
-
-    avcodec_close(m_pEncoderCodecCtx);
+    avcodec_free_context(&m_pEncoderCodecCtx);
 
     return nRet;
 }

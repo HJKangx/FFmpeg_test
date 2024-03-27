@@ -128,7 +128,7 @@ int main()
     float fProcessDuration = 0.f;
     // const std::string strInputUrl = "./TestVideo/terra.mp4";
     // const std::string strInputUrl = "./TestVideo/output_mpeg.mp4";
-    const std::string strInputUrl = "/root/FFmpeg_test/TestVideo/output_264.mp4";
+    const std::string strInputUrl = "/root/FFmpeg_test/TestVideo/cocovid_sv_convert_30_.mp4";
     
     FFmpegTest FFmpegTestObj;
     std::clock_t clockStartTime = std::clock();
