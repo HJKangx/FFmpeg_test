@@ -29,7 +29,6 @@ int FFmpegEncoder::SetEncoder(const std::string& ofsOutputFilePath)
     m_pEncoderCodecCtx->max_b_frames = 10;
     m_pEncoderCodecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
 
-
     nRet = avcodec_open2(m_pEncoderCodecCtx, m_pEncoderCodec, nullptr);
 
     if (nRet < 0)
@@ -102,7 +101,6 @@ int FFmpegEncoder::FlushEncodeVideo(const AVFrame& pFrameData)
         }
         else if (nRet >= 0)
         {
-            // ofsOutputFile.write((const char*)pPacket->data, pPacket->size);
             nRet = av_interleaved_write_frame(m_pOutputFormatCtx, pPacket);
 
             if (nRet < 0)
@@ -126,52 +124,59 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData)
     int nRet = 0;
     AVPacket* pPacket = av_packet_alloc();
 
-    nRet = avcodec_send_frame(m_pEncoderCodecCtx, &pFrameData);
 
     while (true)
     {
-        if (nRet >= 0)
+        nRet = avcodec_send_frame(m_pEncoderCodecCtx, &pFrameData);
+
+        if (nRet < 0)
         {
             nRet = avcodec_receive_packet(m_pEncoderCodecCtx, pPacket);
             if (nRet == AVERROR(EAGAIN))
             {
+                nRet = static_cast<int>(FD_RESULT::WARNING_ENCODER_RECEIVE_AGAIN);
                 return nRet;
             }
-            if (nRet == AVERROR_EOF)
+            else if (nRet == AVERROR_EOF)
             {
                 nRet = static_cast<int>(FD_RESULT::WARNING_ENCODER_END_FILE);
                 return nRet;
             }
-
-            if (nRet >= 0)
+            else if (nRet < 0)
             {
-                // ofsOutputFile.write((const char*)pPacket->data, pPacket->size);
-                nRet = av_interleaved_write_frame(m_pOutputFormatCtx, pPacket);
-
-                if (nRet < 0)
-                {
-                    nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_WRITE_PACKET);
-                    std::cout << "Fail WRITE PACKET" << m_nEncoderCount << std::endl;
-                    return nRet;
-                }
-                m_nEncoderCount++;
-
-                av_packet_unref(pPacket);
+                nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_FAIL_SEND_FRAME);
+                std::cout << "Fail Receive Frame Packet" << m_nEncoderCount << std::endl;
                 return nRet;
             }
-            else
+        }
+        else if (nRet >= 0)
+        {
+            nRet = av_interleaved_write_frame(m_pOutputFormatCtx, pPacket);
+
+            if (nRet < 0)
             {
-                nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_FAIL_RECEIVE_PACKET);
-                std::cout << "Fail Receive Encode Packet" << m_nEncoderCount << std::endl;
+                nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_WRITE_PACKET);
+                std::cout << "Fail WRITE PACKET" << m_nEncoderCount << std::endl;
                 return nRet;
             }
+            m_nEncoderCount++;
+
+            av_packet_unref(pPacket);
+            return nRet;
         }
         else
         {
-            nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_FAIL_SEND_FRAME);
-            std::cout << "Fail Receive Frame Packet" << m_nEncoderCount << std::endl;
+            nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_FAIL_RECEIVE_PACKET);
+            std::cout << "Fail Receive Encode Packet" << m_nEncoderCount << std::endl;
             return nRet;
         }
+        // }
+        // else
+        // {
+        //     nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_FAIL_SEND_FRAME);
+        //     std::cout << "Fail Receive Frame Packet" << m_nEncoderCount << std::endl;
+        //     return nRet;
+        // }
     }
 
     return nRet;

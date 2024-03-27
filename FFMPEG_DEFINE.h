@@ -1,6 +1,6 @@
 #pragma once
 
-const int nMinCount = -0x10;
+const int nMinCount = -0x11;
 
 enum class FD_RESULT
 {
@@ -8,6 +8,7 @@ enum class FD_RESULT
     WARNING_FAIL_READ_PACKET,
     WARNING_NO_VIEDO_STREAM,
     WARNING_NO_AUDIO_STREAM,
+    WARNING_ENCODER_RECEIVE_AGAIN,
     WARNING_ENCODER_END_FILE,
     WARNING_DECODER_END_FILE,
     ERROR_NO_AUDIO_AND_VIEDO_STREAM,
