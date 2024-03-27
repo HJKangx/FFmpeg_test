@@ -3,7 +3,6 @@
 FFmpegEncoder::FFmpegEncoder()
 {
     m_pOutputFormatCtx = nullptr;
-    m_pOutputFormat = nullptr;
     m_pEncoderCodecCtx = nullptr;
     m_pEncoderCodec = nullptr;
     m_pVideoStream = nullptr;
@@ -22,7 +21,7 @@ int FFmpegEncoder::SetEncoder(const std::string& ofsOutputFilePath)
     m_pEncoderCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
     m_pEncoderCodecCtx = avcodec_alloc_context3(m_pEncoderCodec);
 
-    m_pEncoderCodecCtx->bit_rate = 1200000;
+    m_pEncoderCodecCtx->bit_rate = 400000;
     m_pEncoderCodecCtx->width = 1280;  
     m_pEncoderCodecCtx->height = 720;
     m_pEncoderCodecCtx->time_base = (AVRational){1, 30};
@@ -30,8 +29,9 @@ int FFmpegEncoder::SetEncoder(const std::string& ofsOutputFilePath)
     m_pEncoderCodecCtx->max_b_frames = 10;
     m_pEncoderCodecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
 
+
     nRet = avcodec_open2(m_pEncoderCodecCtx, m_pEncoderCodec, nullptr);
-    
+
     if (nRet < 0)
     {
         nRet = static_cast<int>(FD_RESULT::ERROR_FAIL_OPEN_CODEC);
@@ -97,6 +97,7 @@ int FFmpegEncoder::FlushEncodeVideo(const AVFrame& pFrameData)
         if (nRet == AVERROR(EAGAIN) || nRet == AVERROR_EOF)
         {
             nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_FLUSH);
+            std::cout << "Encoded Frame: " << m_nEncoderCount << std::endl;
             return nRet;
         }
         else if (nRet >= 0)
@@ -111,7 +112,6 @@ int FFmpegEncoder::FlushEncodeVideo(const AVFrame& pFrameData)
                 return nRet;
             }
             m_nEncoderCount++;
-            std::cout << " WRITE" << m_nEncoderCount << std::endl;
             av_packet_unref(pPacket);
             continue;
         }
@@ -155,7 +155,6 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData)
                     return nRet;
                 }
                 m_nEncoderCount++;
-                std::cout << " WRITE" << m_nEncoderCount << std::endl;
 
                 av_packet_unref(pPacket);
                 return nRet;
@@ -185,6 +184,8 @@ int FFmpegEncoder::CloseEncoder()
     av_write_trailer(m_pOutputFormatCtx);
     avio_close(m_pOutputFormatCtx->pb);
     avcodec_free_context(&m_pEncoderCodecCtx);
+    avformat_free_context(m_pOutputFormatCtx);
+
 
     return nRet;
 }

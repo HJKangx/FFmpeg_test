@@ -26,7 +26,6 @@ int FFmpegTest::WriteSizeWAVHeader(std::ofstream& ofsWAVFile)
     ofsWAVFile.seekp(40);
     ofsWAVFile.write(reinterpret_cast<const char*>(&nDataChunkSize), 4);
 
-
     return nRet;
 }
 
@@ -35,11 +34,8 @@ int FFmpegTest::StartEncoding()
     int nRet = 0;
     int nFrameNumber = 0;
     
-
     while(true)
     {
-
-        
         nRet = m_pFFmpegDecoder->DecodeVideoOneFrame(*m_pFrameData);
         if (nRet == static_cast<int>(FD_RESULT::WARNING_DECODER_END_FILE) || nFrameNumber == 500)
         {
@@ -50,7 +46,7 @@ int FFmpegTest::StartEncoding()
         nRet = m_pFFmpegEncoder->EncodeVideo(*m_pFrameData);
 
         nFrameNumber++;
-        std::cout << "main Count: " << nFrameNumber << std::endl;
+        std::cout << "Decoding & Encoding: " << nFrameNumber << std::endl;
 
     }
     return nRet;
@@ -87,7 +83,6 @@ int FFmpegTest::DecoingTest(const std::string& strInputUrl)
         std::cout << "nRet Value not in FD_RESULT:"<< nRet << std::endl;
         break;
     }
-
     WriteSizeWAVHeader(ofsWAVFile);
 
     return nRet;
@@ -97,7 +92,6 @@ int FFmpegTest::EncoingTest(const std::string& strInputUrl)
 {
     int nRet = 0;
     nRet = m_pFFmpegDecoder->OpenFile(strInputUrl);
-    // const std::string strOutputEncoderUrl = "TestEncoder.h264";
     const std::string strOutputEncoderUrl = "TestEncoder4.mp4";
 
     switch (nRet)
@@ -106,14 +100,11 @@ int FFmpegTest::EncoingTest(const std::string& strInputUrl)
         nRet = m_pFFmpegDecoder->OpenVideo();
         nRet = m_pFFmpegEncoder->SetEncoder(strOutputEncoderUrl);
         nRet= StartEncoding();
-
         break;
     case static_cast<int>(FD_RESULT::WARNING_NO_AUDIO_STREAM):
         nRet = m_pFFmpegDecoder->OpenVideo();
         nRet = m_pFFmpegEncoder->SetEncoder(strOutputEncoderUrl);
         nRet = StartEncoding();
-
-
         break;
     default:
         break;
@@ -125,9 +116,10 @@ int FFmpegTest::EncoingTest(const std::string& strInputUrl)
 int main()
 // int main(int argc, char *argv[])
 {
+    av_log_set_level(AV_LOG_ERROR);
     float fProcessDuration = 0.f;
-    // const std::string strInputUrl = "./TestVideo/terra.mp4";
-    // const std::string strInputUrl = "./TestVideo/output_mpeg.mp4";
+    // const std::string strInputUrl = "/root/FFmpeg_test/TestVideo//TestVideo/terra.mp4";
+    // const std::string strInputUrl = "/root/FFmpeg_test/TestVideo//TestVideo/output_mpeg.mp4";
     const std::string strInputUrl = "/root/FFmpeg_test/TestVideo/cocovid_sv_convert_30_.mp4";
     
     FFmpegTest FFmpegTestObj;

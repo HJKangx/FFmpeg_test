@@ -158,9 +158,6 @@ int FFmpegDecoder::OpenAudio()
 int FFmpegDecoder::DecodeVideoOneFrame(AVFrame& pOutFrame)
 {
     int nRet = 0;
-    int nFrameNumber = 0;
-    int nPts = 0;
-    
     AVPacket* pPacket = av_packet_alloc();
 
     while (true)
@@ -209,7 +206,6 @@ int FFmpegDecoder::DecodeVideo()
 {
     int nRet = 0;
     int nFrameNumber = 0;
-    int nPts = 0;
     
     AVFrame* pFrameYUV = av_frame_alloc();
     AVFrame* pFrameRGB = av_frame_alloc();
@@ -473,7 +469,7 @@ int FFmpegDecoder::CloseDecoder()
 {
     int nRet = 0;
 
-    avformat_close_input(&m_pFormatCtx);
+    avformat_free_context(m_pFormatCtx);
     avcodec_free_context(&m_pVideoCodecCtx);
     avcodec_free_context(&m_pAudioCodecCtx);
     // av_free(m_pVideoCodec); error
