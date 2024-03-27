@@ -24,15 +24,15 @@ public:
     FFmpegEncoder();
 
     ~FFmpegEncoder();
-    int SetEncoder(const std::string& ofsOutputFilePath);
+
+    int SetEncoder(const int VideoDegree, const std::string& ofsOutputFilePath);
     int EncodeVideo(const AVFrame& pFrameData);
     int FlushEncodeVideo(const AVFrame& pFrameData);
     int CloseEncoder();
-    
-    
-private:
 
 private:
+    int GetVideoDegree(const AVFormatContext& m_pDecoderFormatCtx, int& nVideoDegree);
+
     AVFormatContext* m_pOutputFormatCtx;
     AVCodecContext* m_pEncoderCodecCtx;
     AVCodec* m_pEncoderCodec;

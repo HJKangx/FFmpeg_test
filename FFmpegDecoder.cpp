@@ -23,7 +23,6 @@ FFmpegDecoder::~FFmpegDecoder()
 
 int FFmpegDecoder::OpenFile(const std::string& strInputUrl)
 {
-    // av_dump_format(m_pFormatCtx, 0, 0, 0);
     int nRet = 0;
     int nInputWidth = 0;
     int nInputHeight = 0;

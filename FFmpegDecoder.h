@@ -32,8 +32,9 @@ public:
     int DecodeVideoOneFrame(AVFrame& pOutFrame);
     int DecodeAudio(std::ofstream& ofsWAVFile);
 
+    AVFormatContext* m_pFormatCtx;
+    int m_nVideoStreamIndex;
 
-    
 private:
     int ConvertRGBAVframe(AVFrame& pFrameYuv, AVFrame& pOutFrame);
     int MakeWAVHeader(std::ofstream& ofsWAVFile);
@@ -42,13 +43,11 @@ private:
     int SaveWAV(AVFrame* pFrameAudio, std::ofstream& ofsWAVFile);
     int CloseDecoder();
 
-    AVFormatContext* m_pFormatCtx;
     AVCodecContext* m_pVideoCodecCtx;
     AVCodecContext* m_pAudioCodecCtx;
     AVCodec* m_pVideoCodec;
     AVCodec* m_pAudioCodec;
     
-    int m_nVideoStreamIndex;
     int m_nAudioStreamIndex;
     int m_nTotalFrameNumber;
     float m_fInputDuration;

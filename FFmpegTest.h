@@ -16,7 +16,8 @@ public:
 private:
     int StartEncoding();
     int WriteSizeWAVHeader(std::ofstream& ofsWAVFile);
-    
+    int GetVideoDegree(int& nVideoDegree);
+
     std::shared_ptr<FFmpegDecoder> m_pFFmpegDecoder; 
     std::shared_ptr<FFmpegEncoder> m_pFFmpegEncoder; 
     std::shared_ptr<AVFrame> m_pFrameData;
