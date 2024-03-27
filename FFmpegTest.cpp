@@ -29,20 +29,6 @@ int FFmpegTest::WriteSizeWAVHeader(std::ofstream& ofsWAVFile)
     return nRet;
 }
 
-int FFmpegTest::GetVideoDegree(int& nVideoDegree)
-{
-    int nRet = 0;
-    AVDictionaryEntry *pRotaionTag = nullptr;
-    AVFormatContext& pDecoderFormatCtx = *m_pFFmpegDecoder->m_pFormatCtx;
-
-    pRotaionTag = av_dict_get(pDecoderFormatCtx.streams[m_pFFmpegDecoder->m_nVideoStreamIndex]->metadata, "rotate", nullptr, 0);
-
-    if (pRotaionTag != nullptr) 
-        nVideoDegree = atoi(pRotaionTag->value);
-
-    return nRet;
-}
-
 int FFmpegTest::DecoingTest(const std::string& strInputUrl)
 {
     int nRet = 0;
@@ -106,20 +92,22 @@ int FFmpegTest::EncoingTest(const std::string& strInputUrl)
 {
     int nRet = 0;
     int VideoDegree = 0;
-    nRet = m_pFFmpegDecoder->OpenFile(strInputUrl);
     const std::string strOutputEncoderUrl = "TestEncoder4.mp4";
-    GetVideoDegree(VideoDegree);
+    nRet = m_pFFmpegDecoder->OpenFile(strInputUrl);
+
+    AVDictionary* pDecoderMetadata = nullptr;
+    pDecoderMetadata = m_pFFmpegDecoder->m_pFormatCtx->streams[m_pFFmpegDecoder->m_nVideoStreamIndex]->metadata;
 
     switch (nRet)
     {
     case static_cast<int>(FD_RESULT::OK):
         nRet = m_pFFmpegDecoder->OpenVideo();
-        nRet = m_pFFmpegEncoder->SetEncoder(VideoDegree, strOutputEncoderUrl);
+        nRet = m_pFFmpegEncoder->SetEncoder(*pDecoderMetadata, VideoDegree, strOutputEncoderUrl);
         nRet= StartEncoding();
         break;
     case static_cast<int>(FD_RESULT::WARNING_NO_AUDIO_STREAM):
         nRet = m_pFFmpegDecoder->OpenVideo();
-        nRet = m_pFFmpegEncoder->SetEncoder(VideoDegree, strOutputEncoderUrl);
+        nRet = m_pFFmpegEncoder->SetEncoder(*pDecoderMetadata, VideoDegree, strOutputEncoderUrl);
         nRet = StartEncoding();
         break;
     default:

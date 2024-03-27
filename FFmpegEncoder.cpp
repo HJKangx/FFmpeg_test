@@ -11,11 +11,11 @@ FFmpegEncoder::FFmpegEncoder()
 
 FFmpegEncoder::~FFmpegEncoder()
 {
-    CloseEncoder();
+    // CloseEncoder();
     std::cout << "End FFmpegEncoder" << std::endl;
 }
 
-int FFmpegEncoder::SetEncoder(const int VideoDegree, const std::string& ofsOutputFilePath)
+int FFmpegEncoder::SetEncoder(AVDictionary& pDecoderMetadata, const int VideoDegree, const std::string& ofsOutputFilePath)
 {
     int nRet = 0;
     m_pEncoderCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
@@ -45,6 +45,7 @@ int FFmpegEncoder::SetEncoder(const int VideoDegree, const std::string& ofsOutpu
         nRet = avformat_alloc_output_context2(&m_pOutputFormatCtx, nullptr, nullptr, ofsOutputFilePath.c_str());
         m_pVideoStream = avformat_new_stream(m_pOutputFormatCtx, m_pEncoderCodec);
 
+
         if (m_pVideoStream != nullptr && m_pEncoderCodecCtx != nullptr)
         {
             m_pVideoStream->time_base = m_pEncoderCodecCtx->time_base;
@@ -55,6 +56,9 @@ int FFmpegEncoder::SetEncoder(const int VideoDegree, const std::string& ofsOutpu
                 nRet = avio_open(&m_pOutputFormatCtx->pb, ofsOutputFilePath.c_str(), AVIO_FLAG_WRITE);
                 if (nRet >= 0)
                 {
+                    m_pOutputFormatCtx->metadata = &pDecoderMetadata;
+                    m_pOutputFormatCtx->streams[0]->metadata = &pDecoderMetadata;
+
                     nRet = avformat_write_header(m_pOutputFormatCtx, nullptr);
                     if (nRet < 0)
                     {
@@ -100,6 +104,7 @@ int FFmpegEncoder::FlushEncodeVideo(const AVFrame& pFrameData)
         {
             nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_FLUSH);
             std::cout << "Encoded Frame: " << m_nEncoderCount << std::endl;
+            CloseEncoder();
             return nRet;
         }
         else if (nRet >= 0)
@@ -185,8 +190,9 @@ int FFmpegEncoder::CloseEncoder()
     av_write_trailer(m_pOutputFormatCtx);
     avio_close(m_pOutputFormatCtx->pb);
     avcodec_free_context(&m_pEncoderCodecCtx);
+    m_pOutputFormatCtx->metadata = nullptr;
+    m_pOutputFormatCtx->streams[0]->metadata = nullptr;
     avformat_free_context(m_pOutputFormatCtx);
-
 
     return nRet;
 }

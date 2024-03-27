@@ -25,7 +25,7 @@ public:
 
     ~FFmpegEncoder();
 
-    int SetEncoder(const int VideoDegree, const std::string& ofsOutputFilePath);
+    int SetEncoder(AVDictionary& pDecoderMetadata, const int VideoDegree, const std::string& ofsOutputFilePath);
     int EncodeVideo(const AVFrame& pFrameData);
     int FlushEncodeVideo(const AVFrame& pFrameData);
     int CloseEncoder();
