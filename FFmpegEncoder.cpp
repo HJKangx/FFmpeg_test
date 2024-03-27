@@ -134,8 +134,7 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData)
             nRet = avcodec_receive_packet(m_pEncoderCodecCtx, pPacket);
             if (nRet == AVERROR(EAGAIN))
             {
-                nRet = static_cast<int>(FD_RESULT::WARNING_ENCODER_RECEIVE_AGAIN);
-                return nRet;
+                continue;
             }
             else if (nRet == AVERROR_EOF)
             {
@@ -170,15 +169,7 @@ int FFmpegEncoder::EncodeVideo(const AVFrame& pFrameData)
             std::cout << "Fail Receive Encode Packet" << m_nEncoderCount << std::endl;
             return nRet;
         }
-        // }
-        // else
-        // {
-        //     nRet = static_cast<int>(FD_RESULT::ERROR_ENCODER_FAIL_SEND_FRAME);
-        //     std::cout << "Fail Receive Frame Packet" << m_nEncoderCount << std::endl;
-        //     return nRet;
-        // }
     }
-
     return nRet;
 }
 
